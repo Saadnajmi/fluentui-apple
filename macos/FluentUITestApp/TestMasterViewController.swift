@@ -8,6 +8,16 @@ import AppKit
 /// Master-detail view controller to implement a playground for testing various controls.
 /// To add a control, add it and the type of its NSViewController to "controls"
 class TestMasterViewController: NSViewController, NSTableViewDelegate, NSTableViewDataSource {
+	
+	init(splitViewController: NSSplitViewController) {
+		self.splitViewController = splitViewController
+		super.init(nibName: nil, bundle: nil)
+	}
+	
+	required init?(coder: NSCoder) {
+		fatalError("init(coder:) has not been implemented")
+	}
+	
 	private let controls: [(title: String, type: NSViewController.Type)] = [
 							("FluentUI-macOS (placeholder)", TestPlaceholderViewController.self),
 							("Avatar View", TestAvatarViewController.self),
@@ -21,6 +31,7 @@ class TestMasterViewController: NSViewController, NSTableViewDelegate, NSTableVi
 		controlListView.usesAlternatingRowBackgroundColors = true
 		controlListView.dataSource = self
 		controlListView.delegate = self
+//		controlListView.allowsEmptySelection = false
 		controlListView.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("Column")))
 		controlListView.translatesAutoresizingMaskIntoConstraints = false
 		controlListView.rowHeight = TestMasterViewController.rowHeight
@@ -29,6 +40,10 @@ class TestMasterViewController: NSViewController, NSTableViewDelegate, NSTableVi
 		
 		NSLayoutConstraint.activate([controlListView.widthAnchor.constraint(equalToConstant: 200)])
 	}
+	
+//	override func viewDidLoad() {
+//		controlListView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+//	}
 
 	func numberOfRows(in tableView: NSTableView) -> Int {
 		return controls.count
@@ -47,15 +62,15 @@ class TestMasterViewController: NSViewController, NSTableViewDelegate, NSTableVi
 	}
 	
 	func tableViewSelectionDidChange(_ notification: Notification) {
-// 		TODO
-		controlDetailViewController = controls[controlListView.selectedRow].type.init(nibName: nil, bundle: nil)
+		if splitViewController.splitViewItems.count > 1 {
+			splitViewController.splitViewItems.remove(at: splitViewController.splitViewItems.count - 1)
+		}
+		
+		let controlDetailViewController = controls[controlListView.selectedRow].type.init(nibName: nil, bundle: nil)
+		splitViewController.addSplitViewItem(NSSplitViewItem(viewController: controlDetailViewController))
 	}
 	
-	private var controlDetailViewController: NSViewController? {
-		didSet {
-			// TODO
-		}
-	}
+	private var splitViewController: NSSplitViewController
 
 	private let controlListView = NSTableView(frame: .zero)
 	

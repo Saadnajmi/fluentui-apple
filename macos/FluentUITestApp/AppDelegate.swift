@@ -10,17 +10,16 @@ import AppKit
 class AppDelegate: NSObject, NSApplicationDelegate {
 
 	func applicationWillFinishLaunching(_ notification: Notification) {
-//		let window = NSWindow(contentViewController: TestControlsViewController(nibName: nil, bundle: nil))
 		let window = NSWindow()
 		window.autorecalculatesKeyViewLoop = true
 		window.title = "FluentUI macOS"
 
-		// TODO
-//		window.styleMask = .fullSizeContentView
+		if #available(macOS 10.16, *) {
+			window.styleMask = .fullSizeContentView
+		}
 		
 		let splitViewController = NSSplitViewController()
-		splitViewController.addSplitViewItem(NSSplitViewItem(contentListWithViewController: TestMasterViewController()))
-		splitViewController.addSplitViewItem(NSSplitViewItem(viewController: TestDatePickerController()))
+		splitViewController.addSplitViewItem(NSSplitViewItem(contentListWithViewController: TestMasterViewController(splitViewController: splitViewController)))
 		window.contentViewController = splitViewController
 		
 		window.setFrame(.init(origin: .zero, size: .init(width: AppDelegate.initialWindowWidth, height: AppDelegate.initialWindowHeight)), display: true)
