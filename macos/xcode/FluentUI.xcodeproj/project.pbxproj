@@ -30,6 +30,7 @@
 		A257F828251D988E002CAA6E /* FluentUI-apple.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A257F827251D988E002CAA6E /* FluentUI-apple.xcassets */; };
 		AC7235D82492E0D000D0DCA8 /* FluentUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E61C96B22295E8D60006561F /* FluentUI.framework */; };
 		AC7235D92492E0D000D0DCA8 /* FluentUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E61C96B22295E8D60006561F /* FluentUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		ACDEA077258C39F400B88857 /* ActivityIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDEA076258C39F400B88857 /* ActivityIndicatorView.swift */; };
 		E61C96BC2295E8D60006561F /* FluentUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E61C96B22295E8D60006561F /* FluentUI.framework */; };
 		E61C96C12295E8D60006561F /* AvatarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61C96C02295E8D60006561F /* AvatarViewTests.swift */; };
 		E61C96CC2295EAC50006561F /* FluentUI.h in Headers */ = {isa = PBXBuildFile; fileRef = E61C96B52295E8D60006561F /* FluentUI.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -217,6 +218,7 @@
 		A257F827251D988E002CAA6E /* FluentUI-apple.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "FluentUI-apple.xcassets"; path = "../../apple/Resources/FluentUI-apple.xcassets"; sourceTree = "<group>"; };
 		AC97EFE3247541E100DADC99 /* TestButtonViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TestButtonViewController.swift; sourceTree = "<group>"; };
 		AC97EFE8247FAB1D00DADC99 /* TestSeparatorViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSeparatorViewController.swift; sourceTree = "<group>"; };
+		ACDEA076258C39F400B88857 /* ActivityIndicatorView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActivityIndicatorView.swift; sourceTree = "<group>"; };
 		E61C96B22295E8D60006561F /* FluentUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FluentUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E61C96B52295E8D60006561F /* FluentUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FluentUI.h; sourceTree = "<group>"; };
 		E61C96B62295E8D60006561F /* FluentUI-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "FluentUI-Info.plist"; sourceTree = "<group>"; };
@@ -381,6 +383,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		ACDEA075258C39D000B88857 /* Progress */ = {
+			isa = PBXGroup;
+			children = (
+				ACDEA076258C39F400B88857 /* ActivityIndicatorView.swift */,
+			);
+			path = Progress;
+			sourceTree = "<group>";
+		};
 		E61C96A82295E8D60006561F = {
 			isa = PBXGroup;
 			children = (
@@ -417,6 +427,7 @@
 		E61C96B42295E8D60006561F /* FluentUI */ = {
 			isa = PBXGroup;
 			children = (
+				ACDEA075258C39D000B88857 /* Progress */,
 				53BCB0E8253A74DF00620960 /* AvatarView */,
 				53BCB0E9253A74FE00620960 /* Button */,
 				53BCB0D9253A724700620960 /* Core */,
@@ -787,6 +798,7 @@
 				804626C622D7908100AFA48C /* CalendarDayButton.swift in Sources */,
 				53BCB0DB253A72AD00620960 /* Colors.swift in Sources */,
 				53BCB102253A75EF00620960 /* Separator.swift in Sources */,
+				ACDEA077258C39F400B88857 /* ActivityIndicatorView.swift in Sources */,
 				80117A8322E0E63E00813D59 /* CalendarHeaderView.swift in Sources */,
 				53BCB0ED253A75BB00620960 /* AvatarView.swift in Sources */,
 				53BCB0FB253A75E400620960 /* Link.swift in Sources */,
