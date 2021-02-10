@@ -9,11 +9,11 @@ import FluentUI
 class DemoListViewController: UITableViewController {
 
     static func addDemoListTo(window: UIWindow, pushing viewController: UIViewController?) {
-        if let colorProvider = window as? ColorProviding {
+        if let colorProvider = window as? ColorProviding, let primaryColor = colorProvider.primaryColor(for: window) {
             Colors.setProvider(provider: colorProvider, for: window)
-            FluentUIFramework.initializeAppearance(with: colorProvider.primaryColor(for: window)!, whenContainedInInstancesOf: [type(of: window)])
+            FluentUIFramework.initializeAppearance(with: primaryColor, whenContainedInInstancesOf: [type(of: window)])
         } else {
-            FluentUIFramework.initializeAppearance()
+            FluentUIFramework.initializeAppearance(with: Colors.primary(for: window))
         }
 
         let demoListViewController = DemoListViewController(nibName: nil, bundle: nil)
@@ -28,18 +28,22 @@ class DemoListViewController: UITableViewController {
     }
 
     let demos: [(title: String, controllerClass: UIViewController.Type)] = FluentUI_Demo.demos.filter { demo in
-        #if DEBUG
+#if DEBUG
         return true
-        #else
+#else
         return !demo.title.hasPrefix("DEBUG")
-        #endif
+#endif
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        guard let title = FluentUIFramework.bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String else {
+            return assertionFailure("CFBundleExecutable is nil")
+        }
         let titleView = TwoLineTitleView()
         titleView.setup(
-            title: FluentUIFramework.bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as! String,
+            title: title,
             subtitle: FluentUIFramework.bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         )
         navigationItem.titleView = titleView
@@ -53,6 +57,21 @@ class DemoListViewController: UITableViewController {
         tableView.register(TableViewCell.self, forCellReuseIdentifier: cellReuseIdentifier)
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        if isFirstLaunch {
+            if let lastDemoController = UserDefaults.standard.string(forKey: DemoListViewController.lastDemoControllerKey),
+                let index = demos.firstIndex(where: { $0.title == lastDemoController }) {
+                tableView(tableView, didSelectRowAt: IndexPath(row: index, section: 0))
+            }
+
+            isFirstLaunch = false
+        } else {
+            UserDefaults.standard.set(nil, forKey: DemoListViewController.lastDemoControllerKey)
+        }
+    }
+
     // MARK: Table View
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -60,7 +79,9 @@ class DemoListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: cellReuseIdentifier, for: indexPath) as! TableViewCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: cellReuseIdentifier, for: indexPath) as? TableViewCell else {
+            return UITableViewCell()
+        }
         cell.setup(title: demos[indexPath.row].title, accessoryType: .disclosureIndicator)
         cell.titleNumberOfLinesForLargerDynamicType = 2
         return cell
@@ -71,7 +92,11 @@ class DemoListViewController: UITableViewController {
         let demoController = demo.controllerClass.init(nibName: nil, bundle: nil)
         demoController.title = demo.title
         navigationController?.pushViewController(demoController, animated: true)
+
+        UserDefaults.standard.set(demo.title, forKey: DemoListViewController.lastDemoControllerKey)
     }
 
     let cellReuseIdentifier: String = "TableViewCell"
+    private var isFirstLaunch: Bool = true
+    private static let lastDemoControllerKey: String = "LastDemoController"
 }

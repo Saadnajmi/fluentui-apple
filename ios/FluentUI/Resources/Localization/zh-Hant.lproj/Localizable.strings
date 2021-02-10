@@ -4,6 +4,9 @@
 //
 
 // Accessibility
+"Accessibility.ActivityIndicator.Animating.label" = "進行中";
+"Accessibility.ActivityIndicator.Stopped.label" = "已暫停進度";
+
 "Accessibility.Alert" = "通知";
 "Accessibility.Dismiss.Label" = "關閉";
 "Accessibility.Dismiss.Hint" = "點兩下以關閉";
@@ -93,11 +96,8 @@
 /* Accessibility label for the avatar (or profile) view */
 "Accessibility.LargeTitle.ProfileView" = "帳戶設定檔";
 
-/* Accessibility label format string for avatar view. Format: <Name>, <Presence>. Example: Kat, Available */
+/* Accessibility label format string for avatar view. Format: "<Name>, <Presence>". Example: "Kat, Available" */
 "Accessibility.AvatarView.LabelFormat" = "%@，%@";
-
-/* Accessibility hint for a segmented control button */
-"Accessibility.Segmented.Button.Hint" = "點選以移至 %@";
 
 /* Accessibility hint for more actions button */
 "Accessibility.TableViewCell.MoreActions.Hint" = "點兩下以檢視更多動作";
@@ -113,6 +113,9 @@
 
 /* Accessibility value for when a UISwitch is off */
 "Accessibility.TableViewCell.Switch.Off" = "關閉";
+
+/* Format string for tab bar item accessbility labels. Format: "<Title>, <BadgeValue> items". Example: "Home, 5 items" */
+"Accessibility.TabBarItemView.LabelFormat" = "%@，%@ 個項目";
 
 /* Generic label for cancel action */
 "Common.Cancel" = "取消";
@@ -135,10 +138,10 @@
 /* Yesterday string */
 "Date.Yesterday" = "昨天";
 
-/* Yesterday and time format string. Eample: "Yesterday at 11:00 AM" */
+/* Yesterday and time format string. Example: "Yesterday at 11:00 AM" */
 "Date.FormatYesterdayTime" = "昨天 %@";
 
-/* Day and time format string. Eample: "Fri at 11:00 AM" */
+/* Day and time format string. Example: "Fri at 11:00 AM" */
 "Date.FormatDayTime" = "%@ 於 %@";
 
 // MSPersonaListView
@@ -179,4 +182,3 @@
 
 /* Presence - Blocked status */
 "Presence.Blocked" = "已封鎖";
-

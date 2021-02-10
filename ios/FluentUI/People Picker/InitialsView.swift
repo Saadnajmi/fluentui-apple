@@ -29,7 +29,7 @@ class InitialsView: UIView {
         return colors[hashCode % colors.count]
     }
 
-    private static func initialsText(fromPrimaryText primaryText: String?, secondaryText: String?) -> String {
+    static func initialsText(fromPrimaryText primaryText: String?, secondaryText: String?) -> String {
         var initials = ""
 
         if let primaryText = primaryText, primaryText.count > 0 {
@@ -37,11 +37,6 @@ class InitialsView: UIView {
         } else if let secondaryText = secondaryText, secondaryText.count > 0 {
             // Use first letter of the secondary text
             initials = String(secondaryText.prefix(1))
-        }
-
-        // Fallback to `#` otherwise
-        if initials.count == 0 {
-            initials = "#"
         }
 
         return initials.uppercased()
@@ -103,6 +98,8 @@ class InitialsView: UIView {
 
         // Initials label
         initialsLabel = UILabel()
+        initialsLabel.adjustsFontSizeToFitWidth = true
+        initialsLabel.minimumScaleFactor = 0.8
         initialsLabel.font = avatarSize.font
         initialsLabel.backgroundColor = UIColor.clear
         initialsLabel.textColor = Colors.Avatar.text
@@ -113,6 +110,12 @@ class InitialsView: UIView {
 
     public required init?(coder aDecoder: NSCoder) {
         preconditionFailure("init(coder:) has not been implemented")
+    }
+
+    private struct Constants {
+        /// Adjustment multiplier to accommodate for the inner stroke in `AvatarView` border option.
+        /// `adjustsFontSizeToFitWidth` will not adjust unless text is on or exceeds the containing bounds.
+        static let borderAdjustment: CGFloat = 2.5
     }
 
     // MARK: Setup
@@ -127,12 +130,27 @@ class InitialsView: UIView {
         setBackgroundColor(InitialsView.initialsBackgroundColor(fromPrimaryText: primaryText, secondaryText: secondaryText))
     }
 
+    /// Sets up the initialsView with the provided initials text.
+    /// - Parameter initialsText: the initials text.
+    public func setup(initialsText: String?) {
+        initialsLabel.text = initialsText
+        setBackgroundColor(InitialsView.initialsBackgroundColor(fromPrimaryText: initialsText, secondaryText: nil))
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        initialsLabel.frame = bounds
+        let width = bounds.width - (avatarSize.insideBorder * Constants.borderAdjustment)
+        let height = bounds.height - (avatarSize.insideBorder * Constants.borderAdjustment)
+        let x = bounds.origin.x + avatarSize.insideBorder * (Constants.borderAdjustment / 2)
+        let y = bounds.origin.y + avatarSize.insideBorder * (Constants.borderAdjustment / 2)
+        initialsLabel.frame = CGRect(x: x, y: y, width: width, height: height)
     }
 
     func setBackgroundColor(_ color: UIColor) {
         super.backgroundColor = color
+    }
+
+    func setFontColor(_ color: UIColor) {
+        initialsLabel.textColor = color
     }
 }

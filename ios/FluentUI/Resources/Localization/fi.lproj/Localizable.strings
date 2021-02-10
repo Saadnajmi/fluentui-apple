@@ -4,6 +4,9 @@
 //
 
 // Accessibility
+"Accessibility.ActivityIndicator.Animating.label" = "Kesken";
+"Accessibility.ActivityIndicator.Stopped.label" = "Tilanne pysäytetty";
+
 "Accessibility.Alert" = "Hälytys";
 "Accessibility.Dismiss.Label" = "Hylkää";
 "Accessibility.Dismiss.Hint" = "Hylkää kaksoisnapauttamalla";
@@ -93,11 +96,8 @@
 /* Accessibility label for the avatar (or profile) view */
 "Accessibility.LargeTitle.ProfileView" = "Tiliprofiili";
 
-/* Accessibility label format string for avatar view. Format: <Name>, <Presence>. Example: Kat, Available */
+/* Accessibility label format string for avatar view. Format: "<Name>, <Presence>". Example: "Kat, Available" */
 "Accessibility.AvatarView.LabelFormat" = "%@, %@";
-
-/* Accessibility hint for a segmented control button */
-"Accessibility.Segmented.Button.Hint" = "Siirry kohteeseen %@ napauttamalla";
 
 /* Accessibility hint for more actions button */
 "Accessibility.TableViewCell.MoreActions.Hint" = "Näytä lisää toimintoja kaksoisnapauttamalla";
@@ -113,6 +113,9 @@
 
 /* Accessibility value for when a UISwitch is off */
 "Accessibility.TableViewCell.Switch.Off" = "Ei käytössä";
+
+/* Format string for tab bar item accessbility labels. Format: "<Title>, <BadgeValue> items". Example: "Home, 5 items" */
+"Accessibility.TabBarItemView.LabelFormat" = "%@, %@ kohdetta";
 
 /* Generic label for cancel action */
 "Common.Cancel" = ".Peruuta";
@@ -135,10 +138,10 @@
 /* Yesterday string */
 "Date.Yesterday" = "Eilen";
 
-/* Yesterday and time format string. Eample: "Yesterday at 11:00 AM" */
+/* Yesterday and time format string. Example: "Yesterday at 11:00 AM" */
 "Date.FormatYesterdayTime" = "Eilen kello %@";
 
-/* Day and time format string. Eample: "Fri at 11:00 AM" */
+/* Day and time format string. Example: "Fri at 11:00 AM" */
 "Date.FormatDayTime" = "%@ klo %@";
 
 // MSPersonaListView
@@ -157,26 +160,25 @@
 "MSDateTimePicker.EndDate" = "Päättymispäivä";
 
 /* Presence - Available status */
-"Presence.Available" = "Available";
+"Presence.Available" = "Käytettävissä";
 
 /* Presence - Away status */
-"Presence.Away" = "Away";
+"Presence.Away" = "Poissa";
 
 /* Presence - Busy status */
-"Presence.Busy" = "Busy";
+"Presence.Busy" = "Varattu";
 
 /* Presence - Do not disturb status */
-"Presence.DND" = "Do not disturb";
+"Presence.DND" = "Älä häiritse";
 
 /* Presence - Out of office status */
-"Presence.OOF" = "Out of office";
+"Presence.OOF" = "Poissa";
 
 /* Presence - Offline status */
 "Presence.Offline" = "Offline";
 
 /* Presence - Unknown status */
-"Presence.Unknown" = "Unknown";
+"Presence.Unknown" = "Tuntematon";
 
 /* Presence - Blocked status */
-"Presence.Blocked" = "Blocked";
-
+"Presence.Blocked" = "Estetty";

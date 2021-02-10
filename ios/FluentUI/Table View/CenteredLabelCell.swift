@@ -13,18 +13,14 @@ public typealias MSCenteredLabelCell = CenteredLabelCell
 @objc(MSFCenteredLabelCell)
 open class CenteredLabelCell: UITableViewCell {
     public static let identifier: String = "CenteredLabelCell"
-    public static let defaultHeight: CGFloat = 45
-
-    private struct Constants {
-        static let labelFont: UIFont = Fonts.body
-        static let paddingVerticalSmall: CGFloat = 5
-    }
 
     // Public to be able to change style without wrapping every property
     public let label: UILabel = {
         let label = UILabel()
         label.backgroundColor = .clear
         label.font = Constants.labelFont
+        label.adjustsFontForContentSizeCategory = true
+        label.numberOfLines = 0
         return label
     }()
 
@@ -41,9 +37,22 @@ open class CenteredLabelCell: UITableViewCell {
     /// Set up the cell with text to be displayed in the centered label
     ///
     /// - Parameter text: The text to be displayed
-    open func setup(text: String) {
+    @objc open func setup(text: String) {
         label.text = text
         setNeedsLayout()
+    }
+
+    open override var intrinsicContentSize: CGSize {
+        return sizeThatFits(CGSize(width: CGFloat.infinity, height: .infinity))
+    }
+
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let maxWidth = size.width != 0 ? size.width : .infinity
+
+        let labelWidthArea = maxWidth - layoutMargins.left - layoutMargins.right
+        let labelFittingSize = label.sizeThatFits(CGSize(width: labelWidthArea, height: CGFloat.greatestFiniteMagnitude))
+        let height = max(Constants.paddingVertical * 2 + ceil(labelFittingSize.height), Constants.defaultHeight)
+        return CGSize(width: maxWidth, height: height)
     }
 
     open override func layoutSubviews() {
@@ -63,4 +72,10 @@ open class CenteredLabelCell: UITableViewCell {
     open override func setHighlighted(_ highlighted: Bool, animated: Bool) { }
 
     open override func setSelected(_ selected: Bool, animated: Bool) { }
+
+    private struct Constants {
+        static let labelFont: UIFont = Fonts.body
+        static let paddingVertical: CGFloat = 11
+        static let defaultHeight: CGFloat = 48
+    }
 }

@@ -19,7 +19,7 @@ open class FileAccessoryViewAction: NSObject {
     ///   - isEnabled: true if the action is enabled, false otherwise
     ///   - canHide: false if the action must always be visible, true otherwise
     ///   - useAppPrimaryColor: true if the action's image should be tinted with the app's primary color
-    public init(title: String, image: UIImage, target: Any? = nil, action: Selector? = nil, isEnabled: Bool = true, canHide: Bool = true, useAppPrimaryColor: Bool = false) {
+    @objc public init(title: String, image: UIImage, target: Any? = nil, action: Selector? = nil, isEnabled: Bool = true, canHide: Bool = true, useAppPrimaryColor: Bool = false) {
         self.title = title
         self.image = image
         self.target = target
@@ -43,7 +43,7 @@ open class FileAccessoryViewAction: NSObject {
 // MARK: - TableViewCellFileAccessoryView
 
 /// Class that represents a table view cell accessory view representing a file or folder.
-@objc (TableViewCellFileAccessoryView)
+@objc (MSFTableViewCellFileAccessoryView)
 open class TableViewCellFileAccessoryView: UIView {
     /// The date will be displayed in a friendly format in the accessory view's first column.
     @objc public var date: Date? {
@@ -84,6 +84,32 @@ open class TableViewCellFileAccessoryView: UIView {
         }
     }
 
+    /// The minimum count of actions.
+    /// If there are fewer actions to display than this count, empty spaces will be reserved for those missing actions.
+    /// This property is useful to align columns between cells that display a different number of actions.
+    /// Setting this value too high could result in a broken layout.
+    @objc public var minimumActionsCount: UInt = 0 {
+        didSet {
+            if oldValue != minimumActionsCount {
+                updateLayout()
+            }
+        }
+    }
+
+    /// Number of actions that should overlap with the column that comes before the actions column.
+    /// If actionsOffsetCount > 0, this column will reduce its width but keep its content centered as if there
+    /// was no offset. This is particularily useful with actions that are displayed. Reserving an empty slot for
+    /// an action that rarely displays would cause the previous column to look uncentered. This column
+    /// would also look uncentered when the rarely displayed action is displayed. The solution is to
+    /// allow this action to overlap the space reserved for the previous column.
+    @objc public var actionsColumnOverlap: UInt = 0 {
+        didSet {
+            if oldValue != actionsColumnOverlap {
+                updateLayout()
+            }
+        }
+    }
+
     @objc public weak var tableViewCell: TableViewCell? {
         didSet {
             updateLayout()
@@ -104,6 +130,11 @@ open class TableViewCellFileAccessoryView: UIView {
         columnStackView.addArrangedSubview(actionsStackView)
 
         updateSharedStatus()
+
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(updateLayout),
+                                               name: UIContentSizeCategory.didChangeNotification,
+                                               object: nil)
     }
 
     @available(*, unavailable)
@@ -124,21 +155,28 @@ open class TableViewCellFileAccessoryView: UIView {
     }
 
     private struct Constants {
-        static let layoutBreakPoints: [CGFloat] = [424.0, 504.0, 584.0, 616.0, 752.0, 900.0, 1092.0]
+        static let layoutBreakPoints: [CGFloat] = [424, 504, 584, 616, 752, 900, 1092]
         static let maxVisibleActionCount: UInt8 = 4
-        static let minimumViewHeight: CGFloat = 24.0
-        static let actionsSpacingDefault: CGFloat = 16.0
-        static let actionsSpacingLarge: CGFloat = 24.0
-        static let columnSpacing: CGFloat = 24.0
-        static let reservedCellSpace: [CGFloat] = [460.0, 600.0]
-        static let columnMinWidth: CGFloat = 150.0
-        static let fullDateMinWidth: CGFloat = 170.0
-        static let sharedIconSize: CGFloat = 24.0
-        static let sharedStatusSpacing: CGFloat = 8.0
+        static let minimumViewHeight: CGFloat = 24
+        static let actionsSpacingDefault: CGFloat = 16
+        static let actionsSpacingLarge: CGFloat = 24
+        static let columnSpacing: CGFloat = 24
+        static let leadingOffset: CGFloat = 8
+        static let reservedCellSpace: [CGFloat] = [460, 600]
+        static let columnMinWidth: CGFloat = 150
+        static let fullDateMinWidth: CGFloat = 170
+        static let sharedIconSize: CGFloat = 24
+        static let sharedStatusSpacing: CGFloat = 8
     }
 
     private lazy var actionsStackView: UIStackView = {
-        return createHorizontalStackView()
+        let stackView = createHorizontalStackView()
+
+        if #available(iOS 13, *) {
+            stackView.addInteraction(UILargeContentViewerInteraction())
+        }
+
+        return stackView
     }()
 
     private lazy var columnStackView: UIStackView = {
@@ -165,13 +203,30 @@ open class TableViewCellFileAccessoryView: UIView {
         return label
     }()
 
-    private lazy var dateLabelWidth: NSLayoutConstraint = {
-        return dateLabel.widthAnchor.constraint(equalToConstant: 0.0)
+    private lazy var dateColumnView: UIView = {
+        let view = UIView(frame: .zero)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(dateLabel)
+
+        NSLayoutConstraint.activate([
+            view.topAnchor.constraint(equalTo: dateLabel.topAnchor),
+            view.bottomAnchor.constraint(equalTo: dateLabel.bottomAnchor)
+        ])
+
+        return view
+    }()
+
+    private lazy var dateColumnWidth: NSLayoutConstraint = {
+        return dateColumnView.widthAnchor.constraint(equalToConstant: 0)
+    }()
+
+    private lazy var dateLabelCenterConstraint: NSLayoutConstraint = {
+        return dateLabel.centerXAnchor.constraint(equalTo: dateColumnView.centerXAnchor)
     }()
 
     private func updateSharedStatus() {
         let imageName = isShared ? "ic_fluent_people_24_regular" : "ic_fluent_person_24_regular"
-        sharedStatusImageView.image = UIImage.staticImageNamed(imageName)!.image(withPrimaryColor: Colors.gray500)
+        sharedStatusImageView.image = UIImage.staticImageNamed(imageName)?.image(withPrimaryColor: Colors.gray500)
         sharedStatusLabel.text = isShared ? "Common.Shared".localized : "Common.OnlyMe".localized
     }
 
@@ -191,34 +246,42 @@ open class TableViewCellFileAccessoryView: UIView {
         return imageView
     }()
 
+    private lazy var sharedStatusCenteredView: UIView = {
+        let view = UIView(frame: .zero)
+        view.translatesAutoresizingMaskIntoConstraints = false
+
+        return view
+    }()
+
     private lazy var sharedStatusView: UIView = {
         let containerView = UIView(frame: .zero)
         containerView.translatesAutoresizingMaskIntoConstraints = false
 
-        let view = UIView(frame: .zero)
-        view.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(view)
+        containerView.addSubview(sharedStatusCenteredView)
 
-        view.addSubview(sharedStatusImageView)
-        view.addSubview(sharedStatusLabel)
+        sharedStatusCenteredView.addSubview(sharedStatusImageView)
+        sharedStatusCenteredView.addSubview(sharedStatusLabel)
 
         NSLayoutConstraint.activate([
             sharedStatusImageView.widthAnchor.constraint(equalToConstant: Constants.sharedIconSize),
             sharedStatusImageView.heightAnchor.constraint(equalToConstant: Constants.sharedIconSize),
-            sharedStatusImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            sharedStatusImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            sharedStatusImageView.leadingAnchor.constraint(equalTo: sharedStatusCenteredView.leadingAnchor),
+            sharedStatusImageView.centerYAnchor.constraint(equalTo: sharedStatusCenteredView.centerYAnchor),
             sharedStatusLabel.leadingAnchor.constraint(equalTo: sharedStatusImageView.trailingAnchor, constant: Constants.sharedStatusSpacing),
-            sharedStatusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            sharedStatusLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            sharedStatusLabel.trailingAnchor.constraint(equalTo: sharedStatusCenteredView.trailingAnchor),
+            sharedStatusLabel.centerYAnchor.constraint(equalTo: sharedStatusCenteredView.centerYAnchor),
+            containerView.centerYAnchor.constraint(equalTo: sharedStatusCenteredView.centerYAnchor)
         ])
 
         return containerView
     }()
 
     private lazy var sharedStatusViewWidth: NSLayoutConstraint = {
-        return sharedStatusView.widthAnchor.constraint(equalToConstant: 0.0)
+        return sharedStatusView.widthAnchor.constraint(equalToConstant: 0)
+    }()
+
+    private lazy var sharedStatusCenterConstraint: NSLayoutConstraint = {
+        return sharedStatusCenteredView.centerXAnchor.constraint(equalTo: sharedStatusView.centerXAnchor)
     }()
 
     private func updateActions() {
@@ -272,14 +335,33 @@ open class TableViewCellFileAccessoryView: UIView {
             let actionView = FileAccessoryViewActionView(action: action, window: currentWindow)
             actionsStackView.addArrangedSubview(actionView)
         }
+
+        if actionsStackView.arrangedSubviews.count < minimumActionsCount {
+            let emptyActionsToAdd = Int(minimumActionsCount) - actionsStackView.arrangedSubviews.count
+            var layoutConstraints: [NSLayoutConstraint] = []
+
+            for _ in 1...emptyActionsToAdd {
+                let emptyView = UIView(frame: .zero)
+                emptyView.translatesAutoresizingMaskIntoConstraints = false
+
+                layoutConstraints.append(contentsOf: [
+                    emptyView.widthAnchor.constraint(equalToConstant: FileAccessoryViewActionView.size.width),
+                    emptyView.heightAnchor.constraint(greaterThanOrEqualToConstant: FileAccessoryViewActionView.size.height)
+                ])
+
+                actionsStackView.insertArrangedSubview(emptyView, at: 0)
+            }
+
+            NSLayoutConstraint.activate(layoutConstraints)
+        }
     }
 
     private func updateDateLabel() {
-        let dateString = date?.displayString(short: (dateLabelWidth.constant < Constants.fullDateMinWidth)) ?? ""
+        let dateString = date?.displayString(short: (dateColumnWidth.constant < Constants.fullDateMinWidth)) ?? ""
         dateLabel.text = dateString
     }
 
-    private func updateLayout() {
+    @objc private func updateLayout() {
         updateActions()
 
         let actionCount = actionsStackView.arrangedSubviews.count
@@ -297,29 +379,46 @@ open class TableViewCellFileAccessoryView: UIView {
         let availableColumnSpace = cellSize.width - reservedCellSpace - width
         let columnMinWidth = Constants.columnMinWidth + Constants.columnSpacing
         let canShowFirstColumn = cellSize.width >= Constants.layoutBreakPoints[4] && availableColumnSpace > columnMinWidth
-        let canShowSecondColumn = cellSize.width >= Constants.layoutBreakPoints[5] && availableColumnSpace > 2 * columnMinWidth
+        let canShowSecondColumn = cellSize.width >= Constants.layoutBreakPoints[5] && availableColumnSpace > 2 * columnMinWidth && UIApplication.shared.preferredContentSizeCategory.canShowSharedStatus
         let isShowingDate = canShowFirstColumn && date != nil
         let isShowingSharedStatus = showSharedStatus && (canShowSecondColumn || (canShowFirstColumn && !isShowingDate))
 
-        var columnWidth: CGFloat = 0.0
+        var columnWidth: CGFloat = 0
         if isShowingDate || isShowingSharedStatus {
-            columnWidth = cellSize.width - reservedCellSpace - width
+            columnWidth = availableColumnSpace
 
             if isShowingDate && isShowingSharedStatus {
-                columnWidth = round(columnWidth / 2.0)
-                columnWidth -= Constants.columnSpacing
-                width += columnWidth + Constants.columnSpacing
+                columnWidth = round(columnWidth / 2) - 2 * Constants.columnSpacing
+                width += 2 * columnWidth + 2 * Constants.columnSpacing - Constants.leadingOffset
+            } else {
+                width += columnWidth
+                columnWidth -= 2 * Constants.columnSpacing - Constants.leadingOffset
             }
-
-            columnWidth -= Constants.columnSpacing
-            width += columnWidth + Constants.columnSpacing
         }
 
-        dateLabel.removeFromSuperview()
+        let columnLeadingOffset = CGFloat(actionsColumnOverlap) * (FileAccessoryViewActionView.size.width + actionsStackView.spacing)
+
+        dateColumnView.removeFromSuperview()
         if isShowingDate {
-            columnStackView.insertArrangedSubview(dateLabel, at: 0)
-            dateLabelWidth.constant = columnWidth
-            dateLabelWidth.isActive = true
+            columnStackView.insertArrangedSubview(dateColumnView, at: 0)
+            dateColumnWidth.constant = columnWidth
+            dateColumnWidth.isActive = true
+
+            var centerOffset: CGFloat = 0
+            if actionsColumnOverlap > 0 {
+                centerOffset = columnLeadingOffset / 2
+
+                if isShowingSharedStatus {
+                    centerOffset -= actionsStackView.spacing / 2
+                }
+            }
+
+            if effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                centerOffset = -centerOffset
+            }
+
+            dateLabelCenterConstraint.constant = centerOffset
+            dateLabelCenterConstraint.isActive = true
 
             updateDateLabel()
         }
@@ -329,6 +428,26 @@ open class TableViewCellFileAccessoryView: UIView {
             columnStackView.insertArrangedSubview(sharedStatusView, at: (isShowingDate ? 1 : 0))
             sharedStatusViewWidth.constant = columnWidth
             sharedStatusViewWidth.isActive = true
+
+            var centerOffset: CGFloat = 0
+            if actionsColumnOverlap > 0 {
+                centerOffset = columnLeadingOffset / 2
+
+                if isShowingDate {
+                    centerOffset += actionsStackView.spacing / 2
+                }
+            }
+
+            if effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                centerOffset = -centerOffset
+            }
+
+            sharedStatusCenterConstraint.constant = centerOffset
+            sharedStatusCenterConstraint.isActive = true
+        }
+
+        if isShowingDate && isShowingSharedStatus {
+            columnStackView.setCustomSpacing(0, after: dateColumnView)
         }
 
         var height: CGFloat = FileAccessoryViewActionView.size.height
@@ -340,7 +459,7 @@ open class TableViewCellFileAccessoryView: UIView {
             height = max(height, sharedStatusLabel.intrinsicContentSize.height)
         }
 
-        let newFrame = CGRect(x: 0.0, y: 0.0, width: width, height: height)
+        let newFrame = CGRect(x: 0, y: 0, width: width, height: height)
 
         if !frame.equalTo(newFrame) {
             frame = newFrame
@@ -354,7 +473,7 @@ open class TableViewCellFileAccessoryView: UIView {
 // MARK: - FileAccessoryViewActionView
 
 private class FileAccessoryViewActionView: UIButton {
-    fileprivate static let size = CGSize(width: 24.0, height: 60.0)
+    fileprivate static let size = CGSize(width: 24, height: 60)
 
     fileprivate init(action: FileAccessoryViewAction, window: UIWindow) {
         super.init(frame: .zero)
@@ -380,6 +499,19 @@ private class FileAccessoryViewActionView: UIButton {
             widthAnchor.constraint(equalToConstant: FileAccessoryViewActionView.size.width),
             heightAnchor.constraint(greaterThanOrEqualToConstant: FileAccessoryViewActionView.size.height)
         ])
+
+        if #available(iOS 13, *) {
+            showsLargeContentViewer = true
+            scalesLargeContentImage = true
+            largeContentTitle = action.title
+        }
+
+        if #available(iOS 13.4, *) {
+            // Workaround check for beta iOS versions missing the Pointer Interactions API
+            if arePointerInteractionAPIsAvailable() {
+                isPointerInteractionEnabled = true
+            }
+        }
     }
 
     @available(*, unavailable)
@@ -408,4 +540,15 @@ private class FileAccessoryViewActionView: UIButton {
 
         return view
     }()
+}
+
+extension UIContentSizeCategory {
+    var canShowSharedStatus: Bool {
+        switch self {
+        case .accessibilityExtraExtraExtraLarge, .accessibilityExtraExtraLarge, .accessibilityExtraLarge, .accessibilityLarge, .accessibilityMedium:
+            return false
+        default:
+            return true
+        }
+    }
 }

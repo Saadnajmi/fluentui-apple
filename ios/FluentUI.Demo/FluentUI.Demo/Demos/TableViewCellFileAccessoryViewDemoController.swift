@@ -19,13 +19,26 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         scrollingContainer.addSubview(stackView)
         stackView.addArrangedSubview(settingsView)
 
+        var horizontalConstraint: NSLayoutConstraint?
+        if view.effectiveUserInterfaceLayoutDirection == .leftToRight {
+            horizontalConstraint = stackView.leadingAnchor.constraint(equalTo: scrollingContainer.leadingAnchor)
+        } else {
+            horizontalConstraint = stackView.trailingAnchor.constraint(equalTo: scrollingContainer.trailingAnchor)
+        }
+
         NSLayoutConstraint.activate([
             stackView.topAnchor.constraint(equalTo: scrollingContainer.topAnchor, constant: Constants.stackViewSpacing),
             stackView.bottomAnchor.constraint(equalTo: scrollingContainer.bottomAnchor, constant: -Constants.stackViewSpacing),
-            stackView.leadingAnchor.constraint(equalTo: scrollingContainer.leadingAnchor)
+            horizontalConstraint!
         ])
 
         reloadCells()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        updateCellPadding()
     }
 
     private func reloadCells() {
@@ -35,7 +48,8 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
             }
         }
 
-        accessoryViews.removeAll()
+        topAccessoryViews.removeAll()
+        bottomAccessoryViews.removeAll()
 
         var layoutConstraints: [NSLayoutConstraint] = []
 
@@ -46,9 +60,9 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
                 stackView.addArrangedSubview(cellTitle)
             }
 
-            let cell1 = createCell(title: "Document Title", subtitle: "OneDrive - Microsoft · Microsoft Teams Chat Files")
+            let cell1 = createCell(title: "Document Title", subtitle: "OneDrive - Microsoft · Microsoft Teams Chat Files", top: true)
             let cell2 = createCell(title: "This is a very long document title that keeps on going forever to test text truncation",
-                                   subtitle: "This is a very long document subtitle that keeps on going forever to test text truncation")
+                                   subtitle: "This is a very long document subtitle that keeps on going forever to test text truncation", top: false)
 
             let containerView = UIStackView(frame: .zero)
             containerView.axis = .vertical
@@ -76,14 +90,20 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         updateDate()
         updateSharedStatus()
         updateAreDocumentsShared()
+        updateCellPadding()
     }
 
     private struct Constants {
-        static let stackViewSpacing: CGFloat = 20.0
-        static let cellWidths: [CGFloat] = [320.0, 375.0, 414.0, 423.0, 424.0, 503.0, 504.0, 583.0, 584.0, 615.0, 616.0, 751.0, 752.0, 899.0, 900.0, 924.0, 950.0, 1000.0, 1091.0, 1092.0, 1270.0]
+        static let stackViewSpacing: CGFloat = 20
+        static let cellWidths: [CGFloat] = [320, 375, 414, 423, 424, 503, 504, 583, 584, 615, 616, 751, 752, 899, 900, 924, 950, 1000, 1091, 1092, 1270]
+        static let cellPaddingThreshold: CGFloat = 768
+        static let largeCellPadding: CGFloat = 16
+        static let smallCellPadding: CGFloat = 8
+        static let plusMinusButtonWidth: CGFloat = 40
     }
 
-    private var accessoryViews: [TableViewCellFileAccessoryView] = []
+    private var topAccessoryViews: [TableViewCellFileAccessoryView] = []
+    private var bottomAccessoryViews: [TableViewCellFileAccessoryView] = []
 
     private lazy var stackView: UIStackView = {
         let stackView = UIStackView(frame: .zero)
@@ -100,7 +120,7 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         return customAccessoryView
     }
 
-    private func actions() -> [FileAccessoryViewAction] {
+    private func actions(top: Bool) -> [FileAccessoryViewAction] {
         var actions: [FileAccessoryViewAction] = []
         if showOverflowAction {
             let action = FileAccessoryViewAction(title: "File actions",
@@ -147,7 +167,7 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
             actions.append(action)
         }
 
-        if showErrorAction {
+        if showErrorAction && !(!top && !showErrorOnBottomCellAction) {
             if #available(iOS 13.0, *) {
                 let action = FileAccessoryViewAction(title: "Error",
                                                      image: UIImage(named: "ic_fluent_warning_24_regular")!,
@@ -162,34 +182,44 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
     }
 
     private func updateActions() {
-        let actionList = actions()
-        for accessoryView in accessoryViews {
-            accessoryView.actions = actionList
+        let topActionList = actions(top: true)
+        for accessoryView in topAccessoryViews {
+            accessoryView.actions = topActionList
+        }
+
+        let bottomActionList = actions(top: false)
+        for accessoryView in bottomAccessoryViews {
+            accessoryView.actions = bottomActionList
         }
     }
 
     private func updateDate() {
         let date = showDate ? self.date : nil
-        for accessoryView in accessoryViews {
+        for accessoryView in topAccessoryViews + bottomAccessoryViews {
             accessoryView.date = date
         }
     }
 
     private func updateSharedStatus() {
-        for accessoryView in accessoryViews {
+        for accessoryView in topAccessoryViews + bottomAccessoryViews {
             accessoryView.showSharedStatus = showSharedStatus
         }
     }
 
     private func updateAreDocumentsShared() {
-        for accessoryView in accessoryViews {
+        for accessoryView in topAccessoryViews + bottomAccessoryViews {
             accessoryView.isShared = areDocumentsShared
         }
     }
 
-    private func createCell(title: String, subtitle: String) -> TableViewCell {
+    private func createCell(title: String, subtitle: String, top: Bool) -> TableViewCell {
         let customAccessoryView = createAccessoryView()
-        accessoryViews.append(customAccessoryView)
+
+        if top {
+            topAccessoryViews.append(customAccessoryView)
+        } else {
+            bottomAccessoryViews.append(customAccessoryView)
+        }
 
         let cell = TableViewCell(frame: .zero)
         customAccessoryView.tableViewCell = cell
@@ -216,6 +246,17 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         cell.bottomSeparatorType = .none
 
         return cell
+    }
+
+    private func updateCellPadding() {
+        let extraPadding = view.frame.width >= Constants.cellPaddingThreshold && useDynamicPadding ? Constants.largeCellPadding : Constants.smallCellPadding
+
+        for accessoryView in topAccessoryViews + bottomAccessoryViews {
+            if let cell = accessoryView.tableViewCell {
+                cell.paddingLeading = TableViewCell.defaultPaddingLeading + extraPadding
+                cell.paddingTrailing = TableViewCell.defaultPaddingTrailing + extraPadding
+            }
+        }
     }
 
     private var showKeepOfflineAction: Bool = true {
@@ -260,15 +301,29 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         }
     }
 
+    private var showErrorOnBottomCellAction: Bool = true {
+        didSet {
+            updateActions()
+        }
+    }
+
     private var showOverflowAction: Bool = true {
         didSet {
             reloadCells()
         }
     }
 
-    private var useDynamicWidth: Bool = false {
+    private var useDynamicWidth: Bool = true {
         didSet {
             reloadCells()
+        }
+    }
+
+    private var useDynamicPadding: Bool = false {
+        didSet {
+            if oldValue != useDynamicPadding {
+                updateCellPadding()
+            }
         }
     }
 
@@ -296,6 +351,36 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         }
     }
 
+    private var minimumActionsCount: UInt = 0 {
+        didSet {
+            if oldValue != minimumActionsCount {
+                for accessoryView in topAccessoryViews + bottomAccessoryViews {
+                    accessoryView.minimumActionsCount = minimumActionsCount
+                }
+            }
+        }
+    }
+
+    private var topActionsOverlap: UInt = 0 {
+        didSet {
+            if oldValue != topActionsOverlap {
+                for accessoryView in topAccessoryViews {
+                    accessoryView.actionsColumnOverlap = topActionsOverlap
+                }
+            }
+        }
+    }
+
+    private var bottomActionsOverlap: UInt = 0 {
+        didSet {
+            if oldValue != bottomActionsOverlap {
+                for accessoryView in bottomAccessoryViews {
+                    accessoryView.actionsColumnOverlap = bottomActionsOverlap
+                }
+            }
+        }
+    }
+
     private lazy var settingsView: UIView = {
         let settingsView = UIStackView(frame: .zero)
         settingsView.axis = .horizontal
@@ -305,11 +390,22 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         spacingView.widthAnchor.constraint(equalToConstant: Constants.stackViewSpacing).isActive = true
         settingsView.addArrangedSubview(spacingView)
 
+        let plusMinActionsButton = createPlusMinusButton(plus: true, #selector(incrementMinimumActionsCount))
+        let minusMinActionsButton = createPlusMinusButton(plus: false, #selector(decrementMinimumActionsCount))
+        let plusTopOverlapButton = createPlusMinusButton(plus: true, #selector(incrementTopActionsOverlap))
+        let minusTopOverlapButton = createPlusMinusButton(plus: false, #selector(decrementTopActionsOverlap))
+        let plusBottomOverlapButton = createPlusMinusButton(plus: true, #selector(incrementBottomActionsOverlap))
+        let minusBottomOverlapButton = createPlusMinusButton(plus: false, #selector(decrementBottomActionsOverlap))
+
         let settingViews: [UIView] = [
             createLabelAndSwitchRow(labelText: "Dynamic width", switchAction: #selector(toggleDynamicWidth(switchView:)), isOn: useDynamicWidth),
+            createLabelAndSwitchRow(labelText: "Dynamic padding", switchAction: #selector(toggleDynamicPadding(switchView:)), isOn: useDynamicPadding),
             createLabelAndSwitchRow(labelText: "Show date", switchAction: #selector(toggleShowDate(switchView:)), isOn: showDate),
             createButton(title: "Choose date", action: #selector(presentDatePicker)),
             createButton(title: "Choose time", action: #selector(presentTimePicker)),
+            createLabelAndViewsRow(labelText: "Minimum actions count", views: [plusMinActionsButton, minusMinActionsButton]),
+            createLabelAndViewsRow(labelText: "Top actions overlap", views: [plusTopOverlapButton, minusTopOverlapButton]),
+            createLabelAndViewsRow(labelText: "Bottom actions overlap", views: [plusBottomOverlapButton, minusBottomOverlapButton]),
             createLabelAndSwitchRow(labelText: "Show shared status", switchAction: #selector(toggleShowSharedStatus(switchView:)), isOn: showSharedStatus),
             createLabelAndSwitchRow(labelText: "Is document shared", switchAction: #selector(toggleAreDocumentsShared(switchView:)), isOn: areDocumentsShared),
             createLabelAndSwitchRow(labelText: "Show keep offline button", switchAction: #selector(toggleShowKeepOffline(switchView:)), isOn: showKeepOfflineAction),
@@ -318,6 +414,7 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
             createLabelAndSwitchRow(labelText: "Show pin button", switchAction: #selector(togglePin(switchView:)), isOn: showPinAction),
             createLabelAndSwitchRow(labelText: "Disable pin button", switchAction: #selector(togglePinButtonDisabled(switchView:)), isOn: isPinActionDisabled),
             createLabelAndSwitchRow(labelText: "Show error button", switchAction: #selector(toggleErrorButton(switchView:)), isOn: showErrorAction),
+            createLabelAndSwitchRow(labelText: "Show error button on top cell only", switchAction: #selector(toggleErrorOnBottomCellButton(switchView:)), isOn: !showErrorOnBottomCellAction),
             createLabelAndSwitchRow(labelText: "Show overflow button", switchAction: #selector(toggleOverflow(switchView:)), isOn: showOverflowAction)
         ]
 
@@ -335,6 +432,12 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         return settingsView
     }()
 
+    private func createPlusMinusButton(plus: Bool, _ selector: Selector) -> UIButton {
+        let button = createButton(title: (plus ? "+" : "-"), action: selector)
+        button.widthAnchor.constraint(equalToConstant: Constants.plusMinusButtonWidth).isActive = true
+        return button
+    }
+
     @objc private func toggleShowDate(switchView: UISwitch) {
         showDate = switchView.isOn
     }
@@ -351,6 +454,10 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
 
     @objc private func toggleDynamicWidth(switchView: UISwitch) {
         useDynamicWidth = switchView.isOn
+    }
+
+    @objc private func toggleDynamicPadding(switchView: UISwitch) {
+        useDynamicPadding = switchView.isOn
     }
 
     @objc private func toggleShowSharedStatus(switchView: UISwitch) {
@@ -385,6 +492,10 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
         showErrorAction = switchView.isOn
     }
 
+    @objc private func toggleErrorOnBottomCellButton(switchView: UISwitch) {
+        showErrorOnBottomCellAction = !switchView.isOn
+    }
+
     @objc private func toggleOverflow(switchView: UISwitch) {
         showOverflowAction = switchView.isOn
     }
@@ -407,6 +518,36 @@ class TableViewCellFileAccessoryViewDemoController: DemoController {
 
     @objc private func handleKeepOfflineAction() {
         displayActionAlert(title: "Keep offline")
+    }
+
+    @objc private func incrementMinimumActionsCount() {
+        minimumActionsCount += 1
+    }
+
+    @objc private func decrementMinimumActionsCount() {
+        if minimumActionsCount > 0 {
+            minimumActionsCount -= 1
+        }
+    }
+
+    @objc private func incrementTopActionsOverlap() {
+        topActionsOverlap += 1
+    }
+
+    @objc private func decrementTopActionsOverlap() {
+        if topActionsOverlap > 0 {
+            topActionsOverlap -= 1
+        }
+    }
+
+    @objc private func incrementBottomActionsOverlap() {
+        bottomActionsOverlap += 1
+    }
+
+    @objc private func decrementBottomActionsOverlap() {
+        if bottomActionsOverlap > 0 {
+            bottomActionsOverlap -= 1
+        }
     }
 
     private func displayActionAlert(title: String) {

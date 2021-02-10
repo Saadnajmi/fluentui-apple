@@ -21,7 +21,7 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertFalse(Character("肖").isValidInitialsCharacter)
 		XCTAssertFalse(Character("김").isValidInitialsCharacter)
 		XCTAssertFalse(Character("").isValidInitialsCharacter)
-		
+
 		// Character with diacritic not available in Mac OS Roman
 		XCTAssertFalse(Character("U\u{0304}").isValidInitialsCharacter) // Ū
 	}
@@ -35,7 +35,7 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: nil, email: "Annie.Lindqvist@example.com"), "A")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Annie Boyl Lind", email: nil), "AB")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Annie \"Boyl\" Lind", email: nil), "AL")
-		
+
 		// Non-standard characters
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "😂", email: "happy@example.com"), "H")
 		XCTAssertNil(AvatarView.initials(name: "🧐", email: "😀@😬.😂"))
@@ -65,14 +65,14 @@ class AvatarViewTests: XCTestCase {
 
 		// Complex roman characters
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Êmïlÿ Çœłb", email: nil), "ÊÇ")
-		
+
 		// Complex roman characters with alternate unicode representation
 		XCTAssertEqual("E\u{0300}", "È")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "E\u{0300}mïlÿ Çœłb", email: nil), "ÈÇ")
 
 		// Mixed characters
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Sean 肖", email: nil), "S")
-		
+
 		// Whitespace
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: " Kat Larrson ", email: nil), "KL")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "\nKat Larrson\n", email: nil), "KL")
@@ -83,7 +83,7 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Kat Larrson \t", email: nil), "KL")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Kat \n Larrson", email: nil), "KL")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Kat \t Larrson", email: nil), "KL")
-		
+
 		// Zero Width Space
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Annie\u{200B}Lindqvist", email: nil), "A")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "\u{200B}Annie\u{200B} \u{200B}Lindqvist\u{200B}", email: nil), "AL")
@@ -91,7 +91,7 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "\u{200B} Annie\u{200B} \u{200B}Lindqvist\u{200B}", email: nil), "AL")
 		XCTAssertEqual(AvatarView.initialsWithFallback(name: "Annie\u{200B} \u{200B}Lindqvist \u{200B}", email: nil), "AL")
 	}
-	
+
 	func testAccessibility () {
 		// Avatar with name and email should be an accessibility element with the ax label and tooltip set to the contactName with an image role
 		let nameAndEmailAvatar = AvatarView(avatarSize: 0, contactName: "Annie Lindqvist", contactEmail: "Annie.Lindqvist@example.com")
@@ -99,14 +99,14 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertEqual(nameAndEmailAvatar.accessibilityLabel(), "Annie Lindqvist")
 		XCTAssertEqual(nameAndEmailAvatar.accessibilityRole(), NSAccessibility.Role.image)
 		XCTAssertEqual(nameAndEmailAvatar.toolTip, "Annie Lindqvist")
-		
+
 		// When no name is provided, the ax label and tooltip should fallback to the contactEmail
 		let emailOnlyAvatar = AvatarView(avatarSize: 0, contactEmail: "Annie.Lindqvist@example.com")
 		XCTAssertTrue(emailOnlyAvatar.isAccessibilityElement())
 		XCTAssertEqual(emailOnlyAvatar.accessibilityLabel(), "Annie.Lindqvist@example.com")
 		XCTAssertEqual(emailOnlyAvatar.accessibilityRole(), NSAccessibility.Role.image)
 		XCTAssertEqual(emailOnlyAvatar.toolTip, "Annie.Lindqvist@example.com")
-		
+
 		// When no name or email is provided, there isn't any valuable information to provide, so don't be an accessibility element
 		let noNameNoEmailAvatar = AvatarView(avatarSize: 0)
 		XCTAssertFalse(noNameNoEmailAvatar.isAccessibilityElement())
@@ -115,12 +115,13 @@ class AvatarViewTests: XCTestCase {
 		XCTAssertNil(noNameNoEmailAvatar.toolTip)
 	}
 
-	func testColorTable () {
+	func testBackgroundColors () {
 		// Cherry pick a few known values and test them
-		XCTAssertEqual(AvatarView.backgroundColor(for: 0), #colorLiteral(red: 0.6, green: 0.71, blue: 0.2, alpha: 1))
-		XCTAssertEqual(AvatarView.backgroundColor(for: 1887), #colorLiteral(red: 0.85, green: 0.32, blue: 0.17, alpha: 1))
-		XCTAssertEqual(AvatarView.backgroundColor(for: 2268), #colorLiteral(red: 0.6, green: 0.71, blue: 0.2, alpha: 1))
-		XCTAssertEqual(AvatarView.backgroundColor(for: 3986), #colorLiteral(red: 0.17, green: 0.34, blue: 0.59, alpha: 1))
+		XCTAssertEqual(AvatarView.backgroundColor(for: 0), Colors.Palette.cyanBlue10.color)
+		XCTAssertEqual(AvatarView.backgroundColor(for: 2), Colors.Palette.magenta20.color)
+		XCTAssertEqual(AvatarView.backgroundColor(for: 3), Colors.Palette.green10.color)
+		XCTAssertEqual(AvatarView.backgroundColor(for: 6), Colors.Palette.orange20.color)
+		XCTAssertEqual(AvatarView.backgroundColor(for: 20), Colors.Palette.orange30.color)
 	}
 
 	func testHashAlgorithm () {

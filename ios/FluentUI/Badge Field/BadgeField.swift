@@ -43,6 +43,9 @@ public protocol BadgeFieldDelegate: AnyObject {
      `badgeFieldShouldReturn` is called only when there's no text in the text field, otherwise `BadgeField` badges the text and doesn't call this.
      */
     @objc optional func badgeFieldShouldReturn(_ badgeField: BadgeField) -> Bool
+    /// This is called to check if we should make badges inactive on textFieldDidEndEditing.
+    /// If not implemented, the default value assumed is false.
+    @objc optional func badgeFieldShouldKeepBadgesActiveOnEndEditing(_ badgeField: BadgeField) -> Bool
 }
 
 // MARK: - BadgeField Colors
@@ -75,7 +78,7 @@ open class BadgeField: UIView {
         static let badgeHeight: CGFloat = 26
         static let badgeMarginHorizontal: CGFloat = 5
         static let badgeMarginVertical: CGFloat = 5
-        static let emptyTextFieldString: String = zeroWidthSpace
+        static let emptyTextFieldString: String = ""
         static let dragAndDropMinimumPressDuration: TimeInterval = 0.2
         static let dragAndDropScaleAnimationDuration: TimeInterval = 0.3
         static let dragAndDropScaleFactor: CGFloat = 1.10
@@ -83,7 +86,6 @@ open class BadgeField: UIView {
         static let labelMarginRight: CGFloat = 5
         static let textStyleFont: UIFont = TextStyle.subhead.font
         static let textFieldMinWidth: CGFloat = 100
-        static let zeroWidthSpace: String = "\u{200B}"
     }
 
     @objc open var label: String = "" {
@@ -204,7 +206,6 @@ open class BadgeField: UIView {
         addGestureRecognizer(tapGesture)
 
         textField.addTarget(self, action: #selector(textFieldTextChanged), for: .editingChanged)
-        textField.addObserver(self, forKeyPath: #keyPath(UITextField.selectedTextRange), options: .new, context: nil)
 
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         NotificationCenter.default.addObserver(self, selector: #selector(handleOrientationChanged), name: UIDevice.orientationDidChangeNotification, object: nil)
@@ -218,7 +219,6 @@ open class BadgeField: UIView {
     }
 
     deinit {
-        textField.removeObserver(self, forKeyPath: #keyPath(UITextField.selectedTextRange), context: nil)
 
         UIDevice.current.endGeneratingDeviceOrientationNotifications()
     }
@@ -450,7 +450,9 @@ open class BadgeField: UIView {
             calculateBadgeFrame(badge: badge, badgeIndex: index, lineIndex: &lineIndex, left: &left, topMargin: 0, boundingWidth: bounds.width)
         }
 
-        if isEditable && isFirstResponder && left + Constants.textFieldMinWidth > boundingWidth {
+        let isFirstResponderOrHasTextFieldContent = isFirstResponder || !textFieldContent.isEmpty
+
+        if isEditable && isFirstResponderOrHasTextFieldContent && left + Constants.textFieldMinWidth > boundingWidth {
             lineIndex += 1
         }
         let textFieldSize = textField.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
@@ -703,19 +705,19 @@ open class BadgeField: UIView {
     // MARK: Text field
 
     @objc open var textFieldContent: String {
-        return textField.text!.trimmed()
+        return textField.text?.trimmed() ?? ""
     }
 
     @objc open func resetTextFieldContent() {
         textField.text = Constants.emptyTextFieldString
     }
 
-    private let textField = PasteControlTextField()
+    private let textField = BadgeTextField()
 
     /**
      The approach taken with selectedBadgeTextField is to use an alternate UITextField, invisible to the user, to handle all the actions that are related to the existing badges.
      */
-    private let selectedBadgeTextField = UITextField()
+    private let selectedBadgeTextField = BadgeTextField()
 
     private var switchingTextFieldResponders: Bool = false
 
@@ -773,26 +775,6 @@ open class BadgeField: UIView {
 
     // MARK: Observations
 
-    open override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
-        guard keyPath == #keyPath(UITextField.selectedTextRange), object as? UITextField == textField else {
-            return
-        }
-
-        // Invalid change
-        guard let newSelectedTextRange = change?[NSKeyValueChangeKey.newKey] as? UITextRange else {
-            return
-        }
-
-        // Prevent selection to be before or to include zero width space
-        let startTextPositionValue = textField.offset(from: textField.beginningOfDocument, to: newSelectedTextRange.start)
-        if startTextPositionValue == 0 {
-            if let afterEmptySpaceTextPosition = textField.position(from: newSelectedTextRange.start, in: .right, offset: 1) {
-                let afterEmptySpaceTextRange = textField.textRange(from: afterEmptySpaceTextPosition, to: newSelectedTextRange.end)
-                textField.selectedTextRange = afterEmptySpaceTextRange
-            }
-        }
-    }
-
     @objc func textFieldTextChanged() {
         badgeFieldDelegate?.badgeFieldDidChangeTextFieldContent?(self, isPaste: textField.isPaste)
         textField.isPaste = false
@@ -811,7 +793,10 @@ open class BadgeField: UIView {
         if isIntroductionLabelAccessible() {
             elementsCount += 1
         }
-        elementsCount += badges.count
+
+        elementsCount += shouldUseConstrainedBadges ? constrainedBadges.count : badges.count
+
+        // counting the trailing text field used to add more badges
         elementsCount += 1
         return elementsCount
     }
@@ -821,8 +806,10 @@ open class BadgeField: UIView {
             return labelView
         }
         let offsetIndex = isIntroductionLabelAccessible() ? index - 1 : index
-        if offsetIndex < badges.count {
-            return badges[offsetIndex]
+
+        let activeBadges = shouldUseConstrainedBadges ? constrainedBadges : badges
+        if offsetIndex < activeBadges.count {
+            return activeBadges[offsetIndex]
         }
         return textField
     }
@@ -831,7 +818,9 @@ open class BadgeField: UIView {
         if element as? UILabel == labelView {
             return 0
         }
-        if let badge = element as? BadgeView, let index = badges.firstIndex(of: badge) {
+
+        let activeBadges = shouldUseConstrainedBadges ? constrainedBadges : badges
+        if let badge = element as? BadgeView, let index = activeBadges.firstIndex(of: badge) {
             return isIntroductionLabelAccessible() ? index + 1 : index
         }
         return accessibilityElementCount() - 1
@@ -880,7 +869,9 @@ open class BadgeField: UIView {
             return
         }
 
-        let draggedBadge = gesture.view as! BadgeView
+        guard let draggedBadge = gesture.view as? BadgeView else {
+            return
+        }
         switch gesture.state {
         case .began:
             // Already dragging another badge: cancel this new gesture
@@ -942,7 +933,7 @@ open class BadgeField: UIView {
         // Dragging window becomes front window
         draggingWindow.isHidden = false
         // Move dragged badge to main window
-        draggedBadge!.frame = convert(draggedBadge!.frame, to: containingWindow)
+        draggedBadge?.frame = convert(draggedBadge!.frame, to: containingWindow)
         draggingWindow.addSubview(draggedBadge!)
         // Animate scale
         UIView.animate(withDuration: Constants.dragAndDropScaleAnimationDuration) {
@@ -1124,8 +1115,9 @@ extension BadgeField: UITextFieldDelegate {
             updateLabelsVisibility()
             badgeFieldDelegate?.badgeFieldDidEndEditing?(self)
         }
-        showAllBadgesForEditing = false
-        isActive = false
+        let shouldKeepBadgesActiveOnEndEditing = badgeFieldDelegate?.badgeFieldShouldKeepBadgesActiveOnEndEditing?(self) ?? false
+        showAllBadgesForEditing = shouldKeepBadgesActiveOnEndEditing
+        isActive = shouldKeepBadgesActiveOnEndEditing
     }
 
     public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
@@ -1154,7 +1146,7 @@ extension BadgeField: UITextFieldDelegate {
             // Insert the new char at beginning of text field
             if let formerTextFieldText = self.textField.text {
                 let newTextFieldText = NSMutableString(string: formerTextFieldText)
-                newTextFieldText.insert(string, at: 1)
+                newTextFieldText.insert(string, at: 0)
                 self.textField.text = newTextFieldText as String
                 badgeFieldDelegate?.badgeField?(self, willChangeTextFieldContentWithText: self.textField.text!.trimmed())
             }
@@ -1190,13 +1182,15 @@ extension BadgeField: UITextFieldDelegate {
                     badgeFieldDelegate?.badgeField?(self, willChangeTextFieldContentWithText: newString.trimmed())
                     return true
                 }
-                // Delete backward on visible character: delete character
+
+                // Delete backward on a single character: delete character
                 let textPositionValue = textField.offset(from: textField.beginningOfDocument, to: textField.selectedTextRange!.start)
                 if textPositionValue != Constants.emptyTextFieldString.count {
                     badgeFieldDelegate?.badgeField?(self, willChangeTextFieldContentWithText: newString.trimmed())
                     return true
                 }
-                // Delete backward on zero width space
+
+                // Delete backward in the first position: select last badge if available
                 if let lastBadge = badges.last {
                     selectBadge(lastBadge)
                     selectedBadgeTextField.becomeFirstResponder()
@@ -1210,9 +1204,9 @@ extension BadgeField: UITextFieldDelegate {
     }
 }
 
-// MARK: - PasteControlTextField
+// MARK: - BadgeTextField
 
-private class PasteControlTextField: UITextField {
+private class BadgeTextField: UITextField {
     /**
      Note: This is a signal that indicates that this is under a paste context. This pasteSignal is reset in 'textFieldTextChanged' method of 'BadgeField' right after the delegate method is called
      */
@@ -1221,5 +1215,20 @@ private class PasteControlTextField: UITextField {
     override func paste(_ sender: Any?) {
         isPaste = true
         super.paste(sender)
+    }
+
+    override func deleteBackward() {
+        // Triggers the delegate method even when the cursor (caret) is in the first postion (regardless of text being empty).
+        // Using the zero width space ("\u{200B}") as the emptyTextFieldString instead of this approach will cause Voice Over
+        // to read it out loud as "zero width space", which is not desirable.
+        if let selectionRange = selectedTextRange,
+           selectionRange.isEmpty,
+           offset(from: beginningOfDocument, to: selectionRange.start) == 0 {
+            _ = self.delegate?.textField?(self,
+                                          shouldChangeCharactersIn: NSRange(location: 0, length: 0),
+                                          replacementString: "")
+        }
+
+        super.deleteBackward()
     }
 }

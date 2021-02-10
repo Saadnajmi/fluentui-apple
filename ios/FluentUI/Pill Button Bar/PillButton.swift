@@ -5,95 +5,6 @@
 
 import UIKit
 
-// MARK: PillButton Colors
-
-public extension Colors {
-    struct PillButton {
-        public struct Outline {
-            public static var background = UIColor(light: surfaceTertiary, dark: surfaceSecondary)
-            public static var title = UIColor(light: textSecondary, dark: textPrimary)
-            public static var titleSelected = UIColor(light: textOnAccent, dark: textDominant)
-        }
-        public struct Filled {
-            public static var title = UIColor(light: textOnAccent, dark: Outline.title)
-        }
-    }
-}
-
-// MARK: - PillButtonStyle
-
-@available(*, deprecated, renamed: "PillButtonStyle")
-public typealias MSPillButtonStyle = PillButtonStyle
-
-@objc(MSFPillButtonStyle)
-public enum PillButtonStyle: Int {
-    case outline
-    case filled
-
-    func backgroundColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return Colors.PillButton.Outline.background
-        case .filled:
-            return UIColor(light: Colors.primaryShade10(for: window), dark: Colors.PillButton.Outline.background)
-        }
-    }
-
-    func selectedBackgroundColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return UIColor(light: Colors.primary(for: window), dark: Colors.surfaceQuaternary)
-        case .filled:
-            return UIColor(light: Colors.surfacePrimary, dark: Colors.surfaceQuaternary)
-        }
-    }
-
-    var titleColor: UIColor {
-        switch self {
-        case .outline:
-            return Colors.PillButton.Outline.title
-        case .filled:
-            return Colors.PillButton.Filled.title
-        }
-    }
-
-    func selectedTitleColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return  Colors.PillButton.Outline.titleSelected
-        case .filled:
-            return UIColor(light: Colors.primary(for: window), dark: Colors.PillButton.Outline.titleSelected)
-        }
-    }
-
-    func disabledTitleColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return Colors.textDisabled
-        case .filled:
-            return UIColor(light: Colors.primaryTint10(for: window), dark: Colors.textDisabled)
-        }
-    }
-
-    func selectedDisabledBackgroundColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return Colors.surfaceQuaternary
-        case .filled:
-            return UIColor(light: Colors.surfacePrimary, dark: Colors.surfaceQuaternary)
-        }
-    }
-
-    func selectedDisabledTitleColor(for window: UIWindow) -> UIColor {
-        switch self {
-        case .outline:
-            return UIColor(light: Colors.surfacePrimary, dark: Colors.gray500)
-        case .filled:
-            return UIColor(light: Colors.primaryTint20(for: window), dark: Colors.gray500)
-        }
-    }
-}
-
 // MARK: PillButton
 
 @available(*, deprecated, renamed: "PillButton")
@@ -102,17 +13,56 @@ public typealias MSPillButton = PillButton
 /// An `PillButton` is a button in the shape of a pill that can have two states: on (Selected) and off (not selected)
 @objc(MSFPillButton)
 open class PillButton: UIButton {
-    private struct Constants {
-        static let bottomInset: CGFloat = 6.0
-        static let cornerRadius: CGFloat = 16.0
-        static let font: UIFont = Fonts.button4
-        static let horizontalInset: CGFloat = 16.0
-        static let topInset: CGFloat = 6.0
+
+    /// Set `backgroundColor` to customize background color of the pill button
+    @objc open var customBackgroundColor: UIColor? {
+        didSet {
+            updateAppearance()
+        }
     }
+
+    /// Set `selectedBackgroundColor` to customize background color of the pill button
+    @objc open var customSelectedBackgroundColor: UIColor? {
+        didSet {
+            updateAppearance()
+        }
+    }
+
+    /// Set `textColor` to customize background color of the pill button
+    @objc open var customTextColor: UIColor? {
+        didSet {
+            updateAppearance()
+        }
+    }
+
+    /// Set `selectedTextColor` to customize background color of the pill button
+    @objc open var customSelectedTextColor: UIColor? {
+        didSet {
+            updateAppearance()
+        }
+    }
+
+    open override func didMoveToWindow() {
+        super.didMoveToWindow()
+        updateAppearance()
+    }
+
+    @objc public init(pillBarItem: PillButtonBarItem, style: PillButtonStyle = .primary) {
+        self.pillBarItem = pillBarItem
+        self.style = style
+        super.init(frame: .zero)
+        setupView()
+    }
+
+    @objc public static let cornerRadius: CGFloat = 16.0
 
     @objc public let pillBarItem: PillButtonBarItem
 
     @objc public let style: PillButtonStyle
+
+    public required init?(coder aDecoder: NSCoder) {
+        preconditionFailure("init(coder:) has not been implemented")
+    }
 
     public override var isSelected: Bool {
         didSet {
@@ -128,26 +78,16 @@ open class PillButton: UIButton {
         }
     }
 
-    @objc public init(pillBarItem: PillButtonBarItem, style: PillButtonStyle = .outline) {
-        self.pillBarItem = pillBarItem
-        self.style = style
-        super.init(frame: .zero)
-        setupView()
-    }
-
-    public required init?(coder aDecoder: NSCoder) {
-        preconditionFailure("init(coder:) has not been implemented")
-    }
-
-    open override func didMoveToWindow() {
-        super.didMoveToWindow()
-        updateAppearance()
+    public override var isHighlighted: Bool {
+        didSet {
+            updateAppearance()
+        }
     }
 
     private func setupView() {
         setTitle(pillBarItem.title, for: .normal)
         titleLabel?.font = Constants.font
-        layer.cornerRadius = Constants.cornerRadius
+        layer.cornerRadius = PillButton.cornerRadius
         clipsToBounds = true
 
         if #available(iOS 13, *) {
@@ -181,20 +121,45 @@ open class PillButton: UIButton {
         if let window = window {
             if isSelected {
                 if isEnabled {
-                    backgroundColor = style.selectedBackgroundColor(for: window)
-                    setTitleColor(style.selectedTitleColor(for: window), for: .normal)
+                    if let customSelectedBackgroundColor = customSelectedBackgroundColor {
+                        backgroundColor = customSelectedBackgroundColor
+                    } else {
+                        backgroundColor = isHighlighted
+                            ? PillButton.selectedHighlightedBackgroundColor(for: window, for: style)
+                            : PillButton.selectedBackgroundColor(for: window, for: style)
+                    }
+
+                    setTitleColor(customSelectedTextColor ?? PillButton.selectedTitleColor(for: window, for: style), for: .normal)
+                    setTitleColor(customSelectedTextColor ?? PillButton.selectedHighlightedTitleColor(for: window, for: style), for: .highlighted)
                 } else {
-                    backgroundColor = style.selectedDisabledBackgroundColor(for: window)
-                    setTitleColor(style.selectedDisabledTitleColor(for: window), for: .normal)
+                    backgroundColor = PillButton.selectedDisabledBackgroundColor(for: window, for: style)
+                    setTitleColor(PillButton.selectedDisabledTitleColor(for: window, for: style), for: .normal)
                 }
             } else {
-                backgroundColor = style.backgroundColor(for: window)
-                if isEnabled {
-                    setTitleColor(style.titleColor, for: .normal)
+                if let customBackgroundColor = customBackgroundColor {
+                    backgroundColor = customBackgroundColor
                 } else {
-                    setTitleColor(style.disabledTitleColor(for: window), for: .disabled)
+                    backgroundColor = isEnabled
+                        ? (isHighlighted
+                            ? PillButton.highlightedBackgroundColor(for: window, for: style)
+                            : PillButton.normalBackgroundColor(for: window, for: style))
+                        : PillButton.disabledBackgroundColor(for: window, for: style)
+                }
+
+                if isEnabled {
+                    setTitleColor(customTextColor ?? PillButton.titleColor(for: style), for: .normal)
+                    setTitleColor(customTextColor ?? PillButton.highlightedTitleColor(for: window, for: style), for: .highlighted)
+                } else {
+                    setTitleColor(PillButton.disabledTitleColor(for: window, for: style), for: .disabled)
                 }
             }
         }
+    }
+
+    private struct Constants {
+        static let bottomInset: CGFloat = 6.0
+        static let font: UIFont = Fonts.button4
+        static let horizontalInset: CGFloat = 16.0
+        static let topInset: CGFloat = 6.0
     }
 }

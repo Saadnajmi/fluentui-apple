@@ -74,6 +74,11 @@ class TableViewCellDemoController: DemoController {
         navigationController?.isToolbarHidden = false
     }
 
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.isToolbarHidden = true
+    }
+
     @objc private func selectionBarButtonTapped(sender: UIBarButtonItem) {
         isInSelectionMode = !isInSelectionMode
     }
@@ -110,9 +115,11 @@ extension TableViewCellDemoController: UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCell.identifier) as? TableViewCell else {
+            return UITableViewCell()
+        }
         let section = sections[indexPath.section]
         let item = section.item
-        let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCell.identifier) as! TableViewCell
         cell.setup(
             title: item.text1,
             subtitle: item.text2,
@@ -155,9 +162,9 @@ extension TableViewCellDemoController: UITableViewDataSource {
 
 extension TableViewCellDemoController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-        let header = tableView.dequeueReusableHeaderFooterView(withIdentifier: TableViewHeaderFooterView.identifier) as! TableViewHeaderFooterView
+        let header = tableView.dequeueReusableHeaderFooterView(withIdentifier: TableViewHeaderFooterView.identifier) as? TableViewHeaderFooterView
         let section = sections[section]
-        header.setup(style: section.headerStyle, title: section.title)
+        header?.setup(style: section.headerStyle, title: section.title)
         return header
     }
 

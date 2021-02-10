@@ -27,13 +27,6 @@ public typealias MSTabBarView = TabBarView
 /// Use `selectedItem` property to change the selected tab bar item.
 @objc(MSFTabBarView)
 open class TabBarView: UIView {
-    private struct Constants {
-        static let maxTabCount: Int = 5
-        static let phonePortraitHeight: CGFloat = 48.0
-        static let phoneLandscapeHeight: CGFloat = 40.0
-        static let padHeight: CGFloat = 48.0
-    }
-
     /// List of TabBarItems in the TabBarView. Order of the array is the order of the subviews.
     @objc open var items: [TabBarItem] = [] {
         willSet {
@@ -61,39 +54,27 @@ open class TabBarView: UIView {
     @objc open var selectedItem: TabBarItem? {
         willSet {
             if let item = selectedItem {
-                itemView(with: item)?.isSelected = false
+               (itemView(with: item) as? TabBarItemView)?.isSelected = false
             }
         }
         didSet {
             if let item = selectedItem {
-                itemView(with: item)?.isSelected = true
+                (itemView(with: item) as? TabBarItemView)?.isSelected = true
             }
         }
     }
 
     @objc public weak var delegate: TabBarViewDelegate?
 
-    private let backgroundView: UIVisualEffectView = {
-        var style = UIBlurEffect.Style.regular
-        if #available(iOS 13, *) {
-            style = .systemChromeMaterial
+    /// Set the custom spacing after the specified item.
+    /// - Parameter spacing The spacing.
+    /// - Parameter item The item to add spacing after.
+    @objc public func setCustomSpacing(_ spacing: CGFloat, after item: TabBarItem) {
+        if let index = items.firstIndex(of: item), index < stackView.arrangedSubviews.count {
+            let view = stackView.arrangedSubviews[index]
+            stackView.setCustomSpacing(spacing, after: view)
         }
-        return UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }()
-
-    private var heightConstraint: NSLayoutConstraint?
-
-    private let showsItemTitles: Bool
-
-    private let stackView: UIStackView = {
-        let stackView = UIStackView()
-        stackView.distribution = .fillEqually
-        stackView.alignment = .fill
-        stackView.axis = .horizontal
-        return stackView
-    }()
-
-    private let topBorderLine = Separator(style: .shadow, orientation: .horizontal)
+    }
 
     /// Initializes MSTabBarView
     /// - Parameter showsItemTitles: Determines whether or not to show the titles of the tab ba ritems.
@@ -135,12 +116,48 @@ open class TabBarView: UIView {
         }
     }
 
-    private func itemView(with item: TabBarItem) -> TabBarItemView? {
-        if let index = items.firstIndex(of: item), let tabBarItemView = stackView.arrangedSubviews[index] as? TabBarItemView {
-            return tabBarItemView
+    @objc public func itemView(with item: TabBarItem) -> UIView? {
+        if let index = items.firstIndex(of: item) {
+            let arrangedSubviews = stackView.arrangedSubviews
+
+            if arrangedSubviews.count > index {
+                if let tabBarItemView = arrangedSubviews[index] as? TabBarItemView {
+                    return tabBarItemView
+                }
+            }
         }
+
         return nil
     }
+
+    private struct Constants {
+        static let maxTabCount: Int = 5
+        static let phonePortraitHeight: CGFloat = 48.0
+        static let phoneLandscapeHeight: CGFloat = 40.0
+        static let padHeight: CGFloat = 48.0
+    }
+
+    private let backgroundView: UIVisualEffectView = {
+        var style = UIBlurEffect.Style.regular
+        if #available(iOS 13, *) {
+            style = .systemChromeMaterial
+        }
+        return UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }()
+
+    private var heightConstraint: NSLayoutConstraint?
+
+    private let showsItemTitles: Bool
+
+    private let stackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.distribution = .fillEqually
+        stackView.alignment = .fill
+        stackView.axis = .horizontal
+        return stackView
+    }()
+
+    private let topBorderLine = Separator(style: .shadow, orientation: .horizontal)
 
     private func updateHeight() {
         if traitCollection.userInterfaceIdiom == .phone {

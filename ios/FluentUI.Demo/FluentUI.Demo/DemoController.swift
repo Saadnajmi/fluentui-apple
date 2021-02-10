@@ -10,9 +10,10 @@ class DemoController: UIViewController {
     struct Constants {
         static let margin: CGFloat = 16
         static let horizontalSpacing: CGFloat = 40
+        static let horizontalContainerItemSpacing: CGFloat = 16
         static let verticalSpacing: CGFloat = 16
         static let rowTextWidth: CGFloat = 75
-        static let labelSwitchSpacing: CGFloat = 10
+        static let stackViewSpacing: CGFloat = 10
     }
 
     class func createVerticalContainer() -> UIStackView {
@@ -21,6 +22,14 @@ class DemoController: UIViewController {
         container.layoutMargins = UIEdgeInsets(top: Constants.margin, left: Constants.margin, bottom: Constants.margin, right: Constants.margin)
         container.isLayoutMarginsRelativeArrangement = true
         container.spacing = Constants.verticalSpacing
+        return container
+    }
+
+    class func createHorizontalContainer() -> UIStackView {
+        let container = UIStackView(frame: .zero)
+        container.axis = .horizontal
+        container.distribution = .fillEqually
+        container.spacing = Constants.horizontalContainerItemSpacing
         return container
     }
 
@@ -52,6 +61,7 @@ class DemoController: UIViewController {
         let titleLabel = Label(style: .headline)
         titleLabel.text = text
         titleLabel.textAlignment = .center
+        titleLabel.accessibilityTraits.insert(.header)
         container.addArrangedSubview(titleLabel)
     }
 
@@ -66,7 +76,7 @@ class DemoController: UIViewController {
         itemRow.alignment = .center
         itemRow.spacing = itemSpacing
 
-        if text != "" {
+        if !text.isEmpty {
             let label = Label(style: textStyle, colorStyle: .regular)
             label.text = text
             label.widthAnchor.constraint(equalToConstant: textWidth).isActive = true
@@ -75,6 +85,7 @@ class DemoController: UIViewController {
 
         items.forEach { itemRow.addArrangedSubview($0) }
         itemsContainer.addArrangedSubview(itemRow)
+        itemRow.accessibilityElements = itemRow.arrangedSubviews
         container.addArrangedSubview(itemsContainer)
     }
 
@@ -98,19 +109,26 @@ class DemoController: UIViewController {
     }
 
     func createLabelAndSwitchRow(labelText: String, switchAction: Selector, isOn: Bool = false) -> UIView {
+        let switchView = UISwitch()
+        switchView.isOn = isOn
+        switchView.addTarget(self, action: switchAction, for: .valueChanged)
+
+        return createLabelAndViewsRow(labelText: labelText, views: [switchView])
+    }
+
+    func createLabelAndViewsRow(labelText: String, views: [UIView]) -> UIView {
         let stackView = UIStackView(frame: .zero)
         stackView.axis = .horizontal
         stackView.alignment = .center
-        stackView.spacing = Constants.labelSwitchSpacing
+        stackView.spacing = Constants.stackViewSpacing
 
         let label = Label(style: .subhead, colorStyle: .regular)
         label.text = labelText
         stackView.addArrangedSubview(label)
 
-        let switchView = UISwitch()
-        switchView.isOn = isOn
-        switchView.addTarget(self, action: switchAction, for: .valueChanged)
-        stackView.addArrangedSubview(switchView)
+        for view in views {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }

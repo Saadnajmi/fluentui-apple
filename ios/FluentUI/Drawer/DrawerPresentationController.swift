@@ -5,6 +5,23 @@
 
 import UIKit
 
+// MARK: - DrawerPresentationDelegate
+
+protocol DrawerPresentationControllerDelegate: AnyObject {
+    var passThroughView: UIView? { get }
+    var preferredMaximumExpansionHeight: CGFloat { get }
+    var presentationBackground: DrawerPresentationBackground { get }
+    var presentationOffset: CGFloat { get }
+    var presentationOrigin: CGFloat? { get }
+    var shadowOffset: CGFloat { get }
+    var shouldUseWindowFullWidthInLandscape: Bool { get }
+    var shouldRespectSafeAreaForWindowFullWidth: Bool { get }
+    var sourceObject: Any? { get }
+
+    /// Called when the user requests the dismissal of the presentingViewController
+    func drawerPresentationControllerDismissalRequested(_ presentationController: DrawerPresentationController)
+}
+
 // MARK: DrawerPresentationController
 
 class DrawerPresentationController: UIPresentationController {
@@ -16,46 +33,52 @@ class DrawerPresentationController: UIPresentationController {
 
     let presentationDirection: DrawerPresentationDirection
 
-    private let shouldUseWindowFullWidthInLandscape: Bool
     private let sourceViewController: UIViewController
-    private let sourceObject: Any?
-    private let presentationOrigin: CGFloat?
-    private let presentationOffset: CGFloat
-    private let presentationBackground: DrawerPresentationBackground
 
-    init(presentedViewController: UIViewController, presenting presentingViewController: UIViewController?, source: UIViewController, sourceObject: Any?, presentationOrigin: CGFloat?, presentationDirection: DrawerPresentationDirection, presentationOffset: CGFloat, presentationBackground: DrawerPresentationBackground, adjustHeightForKeyboard: Bool, shouldUseWindowFullWidthInLandscape: Bool) {
+    public weak var drawerPresentationControllerDelegate: DrawerPresentationControllerDelegate?
+
+    init(presentedViewController: UIViewController,
+         presentingViewController: UIViewController?,
+         source: UIViewController,
+         presentationDirection: DrawerPresentationDirection,
+         adjustHeightForKeyboard: Bool) {
         sourceViewController = source
-        self.sourceObject = sourceObject
-        self.presentationOrigin = presentationOrigin
         self.presentationDirection = presentationDirection
-        self.presentationOffset = presentationOffset
-        self.presentationBackground = presentationBackground
-        self.shouldUseWindowFullWidthInLandscape = shouldUseWindowFullWidthInLandscape
-        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
 
-        backgroundView.gestureRecognizers = [UITapGestureRecognizer(target: self, action: #selector(handleBackgroundViewTapped(_:)))]
+        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
 
         if adjustHeightForKeyboard {
             NotificationCenter.default.addObserver(self, selector: #selector(handleKeyboardWillChangeFrame), name: UIApplication.keyboardWillChangeFrameNotification, object: nil)
         }
     }
 
-    // A transparent view, which if tapped will dismiss the dropdown
     private lazy var backgroundView: UIView = {
+    // A transparent view, which if tapped will dismiss the dropdown
         let view = BackgroundView()
+        view.forwardsTouches = false
+        // Pass the passthrough view in touch forwarding view
+        if let passThroughView = drawerPresentationControllerDelegate?.passThroughView {
+            view.passthroughView = passThroughView
+            view.accessibilityElements = [passThroughView]
+        } else {
+            view.isAccessibilityElement = true
+            view.accessibilityLabel = "Accessibility.Dismiss.Label".localized
+            view.accessibilityHint = "Accessibility.Dismiss.Hint".localized
+            view.accessibilityTraits = .button
+        }
         view.backgroundColor = .clear
-        view.isAccessibilityElement = true
-        view.accessibilityLabel = "Accessibility.Dismiss.Label".localized
-        view.accessibilityHint = "Accessibility.Dismiss.Hint".localized
-        view.accessibilityTraits = .button
+
         // Workaround for a bug in iOS: if the resizing handle happens to be in the middle of the backgroundView, VoiceOver will send touch event to it (according to the backgroundView's accessibilityActivationPoint) even though it's not parented in backgroundView or even interactable - this will prevent backgroundView from receiving touch and dismissing controller
+
+        view.gestureRecognizers = [UITapGestureRecognizer(target: self, action: #selector(handleBackgroundViewTapped(_:)))]
         view.onAccessibilityActivate = { [unowned self] in
-            self.presentingViewController.dismiss(animated: true)
+            self.drawerPresentationControllerDelegate?.drawerPresentationControllerDismissalRequested(self)
         }
         return view
     }()
+
     private lazy var dimmingView: DimmingView = {
-        let view = DimmingView(type: presentationBackground.dimmingViewType)
+        let view = DimmingView(type: drawerPresentationControllerDelegate?.presentationBackground.dimmingViewType ?? .black)
         view.isUserInteractionEnabled = false
         return view
     }()
@@ -92,7 +115,7 @@ class DrawerPresentationController: UIPresentationController {
         // For animated presentations presented view must be inside contentView to not slide over navigation bar/toolbar
         if presentingViewController.transitionCoordinator?.isAnimated == true {
             // Avoiding content animation due to showing of the keyboard (when presented view contains the first responder)
-            presentedViewController.view.frame = contentView.bounds
+            presentedViewController.view.frame = frameForPresentedViewController(in: contentView.bounds)
             presentedViewController.view.layoutIfNeeded()
 
             contentView.addSubview(presentedViewController.view)
@@ -111,7 +134,7 @@ class DrawerPresentationController: UIPresentationController {
             // Horizontally presented drawers must be inside containerView in order for device rotation animation to work correctly
             if presentationDirection.isHorizontal {
                 containerView?.addSubview(presentedViewController.view)
-                presentedViewController.view.frame = frameOfPresentedViewInContainerView
+                presentedViewController.view.frame = frameForPresentedViewController(in: contentView.bounds)
                 focusElement = containerView
             } else {
                 focusElement = contentView
@@ -129,7 +152,7 @@ class DrawerPresentationController: UIPresentationController {
         // For animated presentations presented view must be inside contentView to not slide over navigation bar/toolbar
         if let transitionCoordinator = presentingViewController.transitionCoordinator, transitionCoordinator.isAnimated == true {
             contentView.addSubview(presentedViewController.view)
-            presentedViewController.view.frame = contentView.bounds
+            presentedViewController.view.frame = frameForPresentedViewController(in: contentView.bounds)
 
             transitionCoordinator.animate(alongsideTransition: { _ in
                 self.backgroundView.alpha = 0.0
@@ -142,7 +165,7 @@ class DrawerPresentationController: UIPresentationController {
             separator.removeFromSuperview()
             removePresentedViewMask()
             shadowView.owner = nil
-            UIAccessibility.post(notification: .screenChanged, argument: sourceObject)
+            UIAccessibility.post(notification: .screenChanged, argument: drawerPresentationControllerDelegate?.sourceObject)
         }
     }
 
@@ -153,18 +176,21 @@ class DrawerPresentationController: UIPresentationController {
         case resize
     }
 
-    override var frameOfPresentedViewInContainerView: CGRect { return contentView.frame }
+    // Content view is clipped 'clipsToBounds = true' to prevent the drawer from sliding over the navigation bar and for any custom base scenario. But it started clipping shadow of the drawer.
+    // Fix: Shadow offset is added in the presented view and height of content view is also increased by same value. It will make sure shadow is not clipped, keeping presented view's height same.
+
+    override var frameOfPresentedViewInContainerView: CGRect { return contentView.frame.inset(by: DrawerShadowView.shadowOffsetForPresentedView(with: presentationDirection, offset: drawerPresentationControllerDelegate?.shadowOffset ?? 0)) }
 
     var extraContentSizeEffectWhenCollapsing: ExtraContentSizeEffect = .move
 
     private var actualPresentationOffset: CGFloat {
         if presentationDirection.isVertical && traitCollection.horizontalSizeClass == .regular {
-            return presentationOffset
+            return drawerPresentationControllerDelegate?.presentationOffset ?? 0
         }
         return 0
     }
     private var actualPresentationOrigin: CGFloat {
-        if let presentationOrigin = presentationOrigin {
+        if let presentationOrigin = drawerPresentationControllerDelegate?.presentationOrigin {
             return presentationOrigin
         }
 
@@ -264,9 +290,11 @@ class DrawerPresentationController: UIPresentationController {
 
     private func setContentViewFrame(_ frame: CGRect) {
         contentView.frame = frame
-        if let presentedView = presentedView, presentedView.superview == containerView {
-            presentedView.frame = frameOfPresentedViewInContainerView
+
+        if let presentedView = presentedView {
+            presentedView.frame = frameForPresentedViewController(in: presentedView.superview == containerView ? contentView.frame : contentView.bounds)
         }
+
         if separator.superview != nil {
             separator.frame = frameForSeparator(in: contentView.frame, withThickness: separator.frame.height)
         }
@@ -326,39 +354,42 @@ class DrawerPresentationController: UIPresentationController {
             landscapeMode = false
         }
 
+        let shadowOffset = drawerPresentationControllerDelegate?.shadowOffset ?? 0
+        let shouldUseWindowFullWidthInLandscape = drawerPresentationControllerDelegate?.shouldUseWindowFullWidthInLandscape ?? true
+        let preferredMaximumPresentationSize = drawerPresentationControllerDelegate?.preferredMaximumExpansionHeight ?? -1
+
         if presentationDirection.isVertical {
             if contentSize.width == 0 ||
                 (traitCollection.userInterfaceIdiom == .phone && landscapeMode && shouldUseWindowFullWidthInLandscape) ||
                 (traitCollection.horizontalSizeClass == .compact && !landscapeMode) {
                 contentSize.width = contentFrame.width
             }
+
             if actualPresentationOffset == 0 && (presentationDirection == .down || keyboardHeight == 0) {
                 contentSize.height += safeAreaPresentationOffset
             }
+
             contentSize.height = min(contentSize.height, contentFrame.height)
             if extraContentSize >= 0 || extraContentSizeEffectWhenCollapsing == .resize {
-                contentSize.height = min(contentSize.height + extraContentSize, contentFrame.height)
+                let maxContentSize = preferredMaximumPresentationSize != -1 ? preferredMaximumPresentationSize : contentFrame.height
+                contentSize.height = min(contentSize.height + extraContentSize, maxContentSize)
             }
+
+            contentSize.height += shadowOffset
 
             contentFrame.origin.x += (contentFrame.width - contentSize.width) / 2
             if presentationDirection == .up {
                 contentFrame.origin.y = contentFrame.maxY - contentSize.height
             }
-            if extraContentSize < 0 && extraContentSizeEffectWhenCollapsing == .move {
-                contentFrame.origin.y += presentationDirection == .down ? extraContentSize : -extraContentSize
-            }
         } else {
             if actualPresentationOffset == 0 {
                 contentSize.width += safeAreaPresentationOffset
             }
-            contentSize.width = min(contentSize.width, contentFrame.width)
+            contentSize.width = min(contentSize.width, contentFrame.width) + shadowOffset
             contentSize.height = contentFrame.height
 
             if presentationDirection == .fromTrailing {
                 contentFrame.origin.x = contentFrame.maxX - contentSize.width
-            }
-            if extraContentSize < 0 && extraContentSizeEffectWhenCollapsing == .move {
-                contentFrame.origin.x += presentationDirection == .fromLeading ? extraContentSize : -extraContentSize
             }
         }
         contentFrame.size = contentSize
@@ -373,6 +404,13 @@ class DrawerPresentationController: UIPresentationController {
 
         let presentationOffsetMargin = actualPresentationOffset > 0 ? safeAreaPresentationOffset + actualPresentationOffset : 0
         var margins: UIEdgeInsets = .zero
+
+        let shouldRespectSafeAreaForWindowFullWidth = drawerPresentationControllerDelegate?.shouldRespectSafeAreaForWindowFullWidth ?? false
+        if presentationDirection.isVertical && shouldRespectSafeAreaForWindowFullWidth {
+            margins.left = containerView.safeAreaInsets.left
+            margins.right = containerView.safeAreaInsets.right
+        }
+
         switch presentationDirection {
         case .down:
             margins.top = presentationOffsetMargin
@@ -393,13 +431,27 @@ class DrawerPresentationController: UIPresentationController {
         return margins
     }
 
-    private func frameForSeparator(in bounds: CGRect, withThickness thickness: CGFloat) -> CGRect {
-        var bounds = bounds
-        // Separator should stay fixed even when content view is moving - compensating for move
-        if extraContentSize < 0 && extraContentSizeEffectWhenCollapsing == .move {
-            bounds.origin.y += presentationDirection == .down ? -extraContentSize : extraContentSize
+    private func frameForPresentedViewController(in bounds: CGRect) -> CGRect {
+        var frame = bounds
+
+        // Moves the presented view controller (drawer) towards its presenting base in the content view if it's being dragged to dismissal.
+        // In case the drawer is being expanded, the content view grows with the gesture extra content size and the drawer keeps its
+        // original offset relative to the content view.
+        let gestureOffset = extraContentSize < 0 && extraContentSizeEffectWhenCollapsing == .move ? extraContentSize : 0
+
+        let shadowOffset = drawerPresentationControllerDelegate?.shadowOffset ?? 0
+        if presentationDirection.isVertical {
+            frame.origin.y += presentationDirection == .down ? gestureOffset : -gestureOffset + shadowOffset
+            frame.size.height -= shadowOffset
+        } else {
+            frame.origin.x += presentationDirection == .fromLeading ? gestureOffset : -gestureOffset + shadowOffset
+            frame.size.width -= shadowOffset
         }
 
+        return frame
+    }
+
+    private func frameForSeparator(in bounds: CGRect, withThickness thickness: CGFloat) -> CGRect {
         return CGRect(
             x: bounds.minX,
             y: presentationDirection == .down ? bounds.minY : bounds.maxY - thickness,
@@ -437,7 +489,7 @@ class DrawerPresentationController: UIPresentationController {
     // MARK: Actions
 
     @objc private func handleBackgroundViewTapped(_ recognizer: UITapGestureRecognizer) {
-        presentingViewController.dismiss(animated: true)
+        drawerPresentationControllerDelegate?.drawerPresentationControllerDismissalRequested(self)
     }
 
     @objc private func handleKeyboardWillChangeFrame(notification: Notification) {
@@ -464,7 +516,7 @@ class DrawerPresentationController: UIPresentationController {
 // MARK: - BackgroundView
 
 // Used for workaround for a bug in iOS: if the resizing handle happens to be in the middle of the backgroundView, VoiceOver will send touch event to it (according to the backgroundView's accessibilityActivationPoint) even though it's not parented in backgroundView or even interactable - this will prevent backgroundView from receiving touch and dismissing controller. This view overrides the default behavior of sending touch event to a view at the activation point and provides a way for custom handling.
-private class BackgroundView: UIView {
+private class BackgroundView: TouchForwardingView {
     var onAccessibilityActivate: (() -> Void)?
 
     override func accessibilityActivate() -> Bool {
