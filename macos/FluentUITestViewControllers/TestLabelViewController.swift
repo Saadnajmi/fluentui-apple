@@ -20,6 +20,19 @@ class TestLabelViewController: NSViewController {
 
         gridView.addColumn(with: labels)
 
+        let customLabels = TextStyle.allCases.map {textStyle -> NSTextField in
+            let originalLabel = createLabel(withString: string(ForTextStyle: textStyle), forTextStyle: textStyle)
+            let fontDescriptor = originalLabel.font?.fontDescriptor
+            let customFontKey = NSFontDescriptor.TraitKey.weight
+            let customWeight = NSFont.Weight.black
+            let customTraits = [customFontKey: customWeight]
+            let customFontDescriptor = fontDescriptor?.addingAttributes([NSFontDescriptor.AttributeName.traits: customTraits])
+            let customLabel = createLabel(withString: "Custom " + string(ForTextStyle: textStyle), forTextStyle: textStyle)
+            customLabel.font = NSFont(descriptor: customFontDescriptor!, size: customFontDescriptor!.pointSize)
+            return customLabel
+        }
+        gridView.addColumn(with: customLabels)
+
         let containerView = NSStackView()
         containerView.orientation = .vertical
         containerView.translatesAutoresizingMaskIntoConstraints = false
