@@ -7,25 +7,30 @@ import AppKit
 import FluentUI
 
 class TestLinkViewController: NSViewController {
+	
+	static let url = NSURL(string: "https://github.com/microsoft/fluentui-apple")
+
 	let disabledLink = Link(title: "Disabled link with hover effects")
+	let linkWithNoUnderline = Link(title: "Link", url: TestLinkViewController.url)
+	let toggleDisabledLink = Link(title: "Toggle disabled link")
+	let linkWithOverridenTargetAction = Link(title: "Link with overridden Target/Action")
+
+
 
 	override func loadView() {
-		let url = NSURL(string: "https://github.com/microsoft/fluentui-apple")
 
-		let linkWithNoUnderline = Link(title: "Link", url: url)
 
-		let linkWithHover = Link(title: "Link with hover effects", url: url)
+		let linkWithHover = Link(title: "Link with hover effects", url: TestLinkViewController.url)
 		linkWithHover.showsUnderlineWhileMouseInside = true
 
 		let linkWithHoverAndNoURL = Link(title: "Link with hover effects and no URL")
 		linkWithHoverAndNoURL.showsUnderlineWhileMouseInside = true
 
-		let linkWithOverridenTargetAction = Link(title: "Link with overridden Target/Action")
 		linkWithOverridenTargetAction.showsUnderlineWhileMouseInside = true
 		linkWithOverridenTargetAction.target = self
 		linkWithOverridenTargetAction.action = #selector(displayAlert)
 
-		let customLink = Link(title: "Link with custom font, color and image", url: url)
+		let customLink = Link(title: "Link with custom font, color and image", url: TestLinkViewController.url)
 		customLink.font = NSFont.systemFont(ofSize: 12.0, weight: NSFont.Weight.semibold)
 		customLink.contentTintColor = .textColor
 		customLink.image = NSImage(named: NSImage.goRightTemplateName)!
@@ -36,7 +41,6 @@ class TestLinkViewController: NSViewController {
 		disabledLink.target = self
 		disabledLink.action = #selector(toggleLink)
 
-		let toggleDisabledLink = Link(title: "Toggle disabled link")
 		toggleDisabledLink.showsUnderlineWhileMouseInside = true
 		toggleDisabledLink.target = self
 		toggleDisabledLink.action = #selector(toggleLink)
@@ -55,6 +59,54 @@ class TestLinkViewController: NSViewController {
 		containerView.distribution = .gravityAreas
 		view = containerView
 	}
+	
+	func delayWithSeconds(_ seconds: Double, completion: @escaping () -> ()) {
+		DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+			completion()
+		}
+	}
+	
+	override func viewDidAppear() {
+		super.viewDidAppear()
+		let link1 = linkWithNoUnderline
+		let link2 = toggleDisabledLink
+		
+		link1.nextKeyView = link2
+		link2.nextKeyView = link1
+		
+		view.window?.recalculateKeyViewLoop()
+	}
+	
+//	override func viewDidLoad() {
+//
+//		let link1 = linkWithNoUnderline
+//		let link2 = toggleDisabledLink
+//		delayWithSeconds(2) {
+//		   //Do something
+//			link1.nextKeyView = link2
+//			link2.nextKeyView = link1
+//		}
+
+
+//		if let window = window {
+//
+//		}
+//		view.window?.autorecalculatesKeyViewLoop = false
+//		view.window?.recalculateKeyViewLoop()
+
+//		let menu = NSMenu(title: "test")
+//		let viewItem = NSMenuItem()
+//		viewItem.view = AvatarView(avatarSize: 20, contactName: "Saad Najmi", contactEmail: "", contactImage: nil)
+//		viewItem.view?.setFrameSize(NSMakeSize(100, 20))
+//		viewItem.isEnabled = true
+//		let otherItem = NSMenuItem()
+//		otherItem.title = "Other Item"
+//		otherItem.isEnabled = true
+//		menu.addItem(withTitle: "Hello", action: nil, keyEquivalent: "")
+//		menu.addItem(viewItem)
+//		menu.addItem(otherItem)
+//		linkWithNoUnderline.menu = menu
+//	}
 
 	@objc private func toggleLink() {
 		disabledLink.isEnabled = !disabledLink.isEnabled
