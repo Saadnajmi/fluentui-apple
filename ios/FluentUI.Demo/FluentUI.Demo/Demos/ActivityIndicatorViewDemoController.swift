@@ -15,6 +15,10 @@ class ActivityIndicatorViewDemoController: DemoController {
             activityIndicatorView.startAnimating()
             addRow(text: size.description, items: [activityIndicatorView])
         }
+        let baseIndicator = UIActivityIndicatorView()
+        baseIndicator.startAnimating()
+        baseIndicator.style = .large
+        addRow(text: "UIKit", items: [baseIndicator])
     }
 }
 

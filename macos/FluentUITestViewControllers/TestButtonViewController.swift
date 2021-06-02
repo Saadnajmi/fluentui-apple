@@ -298,6 +298,7 @@ class TestButtonViewController: NSViewController, NSMenuDelegate {
 		if let documentView = scrollView.documentView {
 			documentView.scroll(NSPoint(x: 0, y: documentView.bounds.size.height))
 		}
+//		self.view.window?.recalculateKeyViewLoop()
 	}
 
 	@objc func materialChanged() {
