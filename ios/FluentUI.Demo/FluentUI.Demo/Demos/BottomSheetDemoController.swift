@@ -19,8 +19,9 @@ class BottomSheetDemoController: UIViewController {
         optionTableView.separatorStyle = .none
         view.addSubview(optionTableView)
 
-        let bottomSheetViewController = BottomSheetController(contentView: personaListView)
+        let bottomSheetViewController = BottomSheetController(headerContentView: headerView, expandedContentView: personaListView)
         bottomSheetViewController.hostedScrollView = personaListView
+        bottomSheetViewController.collapsedContentHeight = BottomSheetDemoController.headerHeight
 
         self.bottomSheetViewController = bottomSheetViewController
 
@@ -44,6 +45,10 @@ class BottomSheetDemoController: UIViewController {
         bottomSheetViewController?.isExpandable.toggle()
     }
 
+    @objc private func toggleHidden() {
+        bottomSheetViewController?.isHidden.toggle()
+    }
+
     @objc private func fullScreenExpandedOffset() {
         bottomSheetViewController?.expandedHeightFraction = 1.0
     }
@@ -55,8 +60,27 @@ class BottomSheetDemoController: UIViewController {
     private let personaListView: PersonaListView = {
         let personaListView = PersonaListView()
         personaListView.personaList = samplePersonas
+        personaListView.backgroundColor = Colors.NavigationBar.background
         personaListView.translatesAutoresizingMaskIntoConstraints = false
         return personaListView
+    }()
+
+    private let headerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = Colors.surfaceQuaternary
+        view.heightAnchor.constraint(equalToConstant: headerHeight).isActive = true
+
+        let label = Label()
+        label.text = "Header view"
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(label)
+
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+        return view
     }()
 
     private var bottomSheetViewController: BottomSheetController?
@@ -64,10 +88,13 @@ class BottomSheetDemoController: UIViewController {
     private lazy var demoOptionItems: [DemoItem] = {
         return [
             DemoItem(title: "Expandable", type: .boolean, action: #selector(toggleExpandable), isOn: true),
+            DemoItem(title: "Hidden", type: .boolean, action: #selector(toggleHidden), isOn: false),
             DemoItem(title: "Full screen expansion height", type: .action, action: #selector(fullScreenExpandedOffset)),
             DemoItem(title: "Half screen expansion height", type: .action, action: #selector(halfScreenExpandedOffset))
         ]
     }()
+
+    private static let headerHeight: CGFloat = 70
 
     private enum DemoItemType {
         case action
