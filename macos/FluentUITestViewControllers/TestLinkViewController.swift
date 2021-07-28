@@ -148,8 +148,19 @@ class TestLinkViewController: NSViewController {
 		let view = NSView()
 		view.wantsLayer = true
 		view.layer?.backgroundColor = NSColor.systemRed.cgColor
+		view.frame = NSMakeRect(0, 0, 350, 50)
 		fourthMenuItem.view = view
 		menu.addItem(fourthMenuItem)
+		
+		let submenu2 = createSubMenu()
+		menu.setSubmenu(submenu2, for: fourthMenuItem)
+		
+		let fifthMenuItem = NSMenuItem()
+		fifthMenuItem.title = "Fifth"
+		fifthMenuItem.image = NSImage(named: NSImage.refreshTemplateName)
+		let fifthMenuItemImage = NSImage(named: NSImage.refreshTemplateName)?.image(with: .controlAccentColor)
+		fifthMenuItem.image = fifthMenuItemImage
+		menu.addItem(fifthMenuItem)
 		
 		return menu
 	}
