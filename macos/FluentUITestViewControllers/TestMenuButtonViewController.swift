@@ -55,6 +55,7 @@ class TestMenuButtonViewController: NSViewController {
 		let image = NSImage(named: NSImage.iconViewTemplateName)!
 		image.size = CGSize(width: 15, height: 15)
 		menuButton.image = image
+		menuButton.title = "Hello World"
 		
 		let menu = createMenuFromJson(json: testJson)
 		menuButton.menu = menu
